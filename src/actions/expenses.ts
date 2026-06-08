@@ -4,7 +4,7 @@ import { db } from "@/db";
 import {
   expenses,
   expenseParticipants,
-  flatMembers,
+  groupMembers,
   auditLogs,
   users,
 } from "@/db/schema";
@@ -15,7 +15,7 @@ import { notifyUsers } from "@/lib/notify";
 import type { ActionResult } from "./auth";
 
 const expenseSchema = z.object({
-  flatId: z.string().uuid(),
+  groupId: z.string().uuid(),
   title: z.string().min(1).max(255),
   description: z.string().max(500).optional(),
   amount: z.number().positive("Amount must be positive"),
@@ -33,6 +33,7 @@ const expenseSchema = z.object({
   date: z.string().datetime().optional(),
   participantIds: z.array(z.string().uuid()).min(1),
   customSplits: z.record(z.string(), z.number()).optional(),
+  receiptUrls: z.array(z.string()).optional(),
 });
 
 type ExpenseInput = z.infer<typeof expenseSchema>;
@@ -45,7 +46,7 @@ export async function createExpense(
   if (!parsed.success) return { success: false, error: "Invalid input" };
 
   const {
-    flatId,
+    groupId,
     title,
     description,
     amount,
@@ -54,28 +55,29 @@ export async function createExpense(
     date,
     participantIds,
     customSplits,
+    receiptUrls,
   } = parsed.data;
 
   const [membership] = await db
-    .select({ id: flatMembers.id })
-    .from(flatMembers)
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.flatId, flatId),
-        eq(flatMembers.userId, userId),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) return { success: false, error: "Not a member of this flat" };
+  if (!membership) return { success: false, error: "Not a member of this group" };
 
   const shares = calculateShares(amount, splitType, participantIds, customSplits);
 
   const [expense] = await db
     .insert(expenses)
     .values({
-      flatId,
+      groupId,
       paidById: userId,
       title,
       description,
@@ -83,6 +85,7 @@ export async function createExpense(
       category,
       splitType,
       date: date ? new Date(date) : new Date(),
+      receiptUrls: receiptUrls ?? [],
     })
     .returning({ id: expenses.id });
 
@@ -97,7 +100,7 @@ export async function createExpense(
   );
 
   await db.insert(auditLogs).values({
-    flatId,
+    groupId,
     userId,
     action: "expense.created",
     resource: "expense",
@@ -105,7 +108,6 @@ export async function createExpense(
     after: { title, amount, splitType },
   });
 
-  // Notify all other participants about the new expense
   const [payer] = await db
     .select({ name: users.name })
     .from(users)
@@ -116,7 +118,7 @@ export async function createExpense(
   if (otherParticipantIds.length > 0) {
     await notifyUsers(
       otherParticipantIds,
-      flatId,
+      groupId,
       "expense_added",
       "New expense added",
       `${payer?.name ?? "Someone"} added "${title}" — ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
@@ -209,12 +211,11 @@ export async function settleShare(
       .where(eq(expenses.id, expenseId));
   }
 
-  // Notify the expense payer that this user marked their share as paid
   const [expense] = await db
     .select({
       paidById: expenses.paidById,
       title: expenses.title,
-      flatId: expenses.flatId,
+      groupId: expenses.groupId,
     })
     .from(expenses)
     .where(eq(expenses.id, expenseId))
@@ -229,7 +230,7 @@ export async function settleShare(
 
     await notifyUsers(
       [expense.paidById],
-      expense.flatId,
+      expense.groupId,
       "settlement_completed",
       "Share marked as paid",
       `${settler?.name ?? "Someone"} paid their share for "${expense.title}"`,
@@ -250,7 +251,7 @@ export async function deleteExpense(
   const [expense] = await db
     .select({
       id: expenses.id,
-      flatId: expenses.flatId,
+      groupId: expenses.groupId,
       paidById: expenses.paidById,
     })
     .from(expenses)

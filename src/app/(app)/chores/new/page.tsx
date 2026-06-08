@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { flatMembers, users } from "@/db/schema";
+import { groupMembers, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -15,26 +15,26 @@ export default async function NewChorePage() {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId })
-    .from(flatMembers)
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.userId, session.user.id),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) redirect("/flats");
+  if (!membership) redirect("/groups");
 
   const members = await db
     .select({ id: users.id, name: users.name })
     .from(users)
-    .innerJoin(flatMembers, eq(flatMembers.userId, users.id))
+    .innerJoin(groupMembers, eq(groupMembers.userId, users.id))
     .where(
       and(
-        eq(flatMembers.flatId, membership.flatId),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, membership.groupId),
+        eq(groupMembers.status, "active")
       )
     );
 
@@ -43,7 +43,7 @@ export default async function NewChorePage() {
       <div className="mb-6">
         <h1 className="text-2xl font-semibold tracking-tight">New Chore</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Create and assign a task for your flat
+          Create and assign a task for your group
         </p>
       </div>
 
@@ -53,7 +53,7 @@ export default async function NewChorePage() {
         </CardHeader>
         <CardContent>
           <ChoreForm
-            flatId={membership.flatId}
+            groupId={membership.groupId}
             members={members.map((m) => ({
               id: m.id,
               name: m.name ?? "Unknown",

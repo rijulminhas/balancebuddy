@@ -13,6 +13,7 @@ import {
   LogOut,
   ChevronLeft,
   ChevronRight,
+  History,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -23,12 +24,13 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 
 const navItems = [
   { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/flats",         label: "My Flat",       icon: Home },
+  { href: "/groups",         label: "My Group",       icon: Home },
+  { href: "/groups/history", label: "Room History",   icon: History },
   { href: "/expenses",      label: "Expenses",      icon: Receipt },
   { href: "/settlements",   label: "Settlements",   icon: ArrowLeftRight },
   { href: "/chores",        label: "Chores",        icon: CheckSquare },
   { href: "/notifications", label: "Notifications", icon: Bell },
-  // { href: "/settings",      label: "Settings",      icon: Settings },
+  { href: "/settings/profile",      label: "Profile Settings",      icon: Settings },
 ];
 
 function getInitials(name?: string | null) {
@@ -47,11 +49,16 @@ function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(0);
 
   useEffect(() => {
     fetch("/api/notifications/unread-count")
       .then((r) => r.json())
       .then((d) => setUnreadCount(d.count ?? 0))
+      .catch(() => {});
+    fetch("/api/groups/history-count")
+      .then((r) => r.json())
+      .then((d) => setHistoryCount(d.count ?? 0))
       .catch(() => {});
   }, [pathname]);
 
@@ -64,11 +71,11 @@ function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
       )}>
         <Link href="/dashboard" onClick={onNavClick} className="flex items-center gap-3">
           <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
-            RS
+            BB
           </div>
           {!collapsed && (
             <span className="text-base font-black tracking-tight text-sidebar-foreground">
-              RoomSync
+              BalanceBuddy
             </span>
           )}
         </Link>
@@ -83,7 +90,11 @@ function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
         )}
 
         {navItems.map(({ href, label, icon: Icon }) => {
-          const active = pathname === href || pathname.startsWith(href + "/");
+          if (href === "/groups/history" && historyCount === 0) return null;
+
+          const active = href === "/groups"
+            ? pathname === "/groups"
+            : pathname === href || pathname.startsWith(href + "/");
 
           const item = (
             <Link

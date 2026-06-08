@@ -3,11 +3,11 @@
 
 # CLAUDE.md
 
-# RoomSync - Flatmate Operating System
+# BalanceBuddy - Expense Management Operating System
 
 ## Project Overview
 
-RoomSync is a modern Flatmate Operating System (FOS) designed for shared living environments including flats, PGs, hostels, co-living spaces, student accommodations, and travel groups.
+BalanceBuddy is a modern Expense Management Operating System designed for shared group environments including flats, PGs, hostels, co-living spaces,trips, student accommodations, and travel groups.
 
 The platform centralizes:
 
@@ -22,9 +22,9 @@ The platform centralizes:
 * Push Notifications
 * AI Insights
 
-RoomSync is NOT an expense-splitting clone.
+BalanceBuddy is NOT an expense-splitting clone.
 
-RoomSync should feel like a complete operating system for shared living.
+BalanceBuddy should feel like a complete operating system for shared living , trips or travel groups.
 
 ---
 

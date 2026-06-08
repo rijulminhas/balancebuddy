@@ -7,7 +7,7 @@ import {
   text,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const settlementStatusEnum = pgEnum("settlement_status", [
   "pending",
@@ -17,9 +17,9 @@ export const settlementStatusEnum = pgEnum("settlement_status", [
 
 export const settlements = pgTable("settlements", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   fromUserId: uuid("from_user_id")
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -39,9 +39,9 @@ export const payments = pgTable("payments", {
   settlementId: uuid("settlement_id")
     .notNull()
     .references(() => settlements.id, { onDelete: "cascade" }),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   fromUserId: uuid("from_user_id")
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -49,7 +49,7 @@ export const payments = pgTable("payments", {
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
-  method: text("method"), // cash, UPI, bank transfer, etc.
+  method: text("method"),
   reference: text("reference"),
   note: text("note"),
   paidAt: timestamp("paid_at").defaultNow().notNull(),

@@ -6,7 +6,7 @@ import {
   payments,
   expenses,
   expenseParticipants,
-  flatMembers,
+  groupMembers,
   users,
 } from "@/db/schema";
 import { eq, and, asc, inArray, count } from "drizzle-orm";
@@ -14,8 +14,6 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
 import type { ActionResult } from "./auth";
-
-// ─── Types ───────────────────────────────────────────────────────────────────
 
 export interface RawDebt {
   fromUserId: string;
@@ -34,12 +32,10 @@ export interface OptimizedTransaction {
 export interface MemberBalance {
   userId: string;
   name: string;
-  netBalance: number; // positive = is owed, negative = owes
+  netBalance: number;
 }
 
-// ─── Core balance computation (reusable by page) ─────────────────────────────
-
-export async function computeFlatBalances(flatId: string): Promise<{
+export async function computeGroupBalances(groupId: string): Promise<{
   rawDebts: RawDebt[];
   memberBalances: MemberBalance[];
   optimizedTransactions: OptimizedTransaction[];
@@ -54,10 +50,9 @@ export async function computeFlatBalances(flatId: string): Promise<{
     .from(expenseParticipants)
     .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
     .where(
-      and(eq(expenses.flatId, flatId), eq(expenseParticipants.isPaid, false))
+      and(eq(expenses.groupId, groupId), eq(expenseParticipants.isPaid, false))
     );
 
-  // Each row: participantUserId owes expensePaidById shareAmount
   const rawDebts: RawDebt[] = unpaidShares
     .filter((r) => r.participantUserId !== r.expensePaidById)
     .map((r) => ({
@@ -66,7 +61,6 @@ export async function computeFlatBalances(flatId: string): Promise<{
       amount: Number(r.shareAmount),
     }));
 
-  // Collect all involved user IDs
   const involvedIds = [
     ...new Set([
       ...rawDebts.map((d) => d.fromUserId),
@@ -84,7 +78,6 @@ export async function computeFlatBalances(flatId: string): Promise<{
 
   const nameMap = new Map(memberRows.map((u) => [u.id, u.name ?? "Unknown"]));
 
-  // Compute net balances
   const netMap = new Map<string, number>();
   for (const { fromUserId, toUserId, amount } of rawDebts) {
     netMap.set(fromUserId, (netMap.get(fromUserId) ?? 0) - amount);
@@ -99,11 +92,13 @@ export async function computeFlatBalances(flatId: string): Promise<{
     })
   );
 
-  // Greedy minimum-transactions optimization
   const optimizedTransactions = optimizeSettlements(netMap, nameMap);
 
   return { rawDebts, memberBalances, optimizedTransactions, nameMap };
 }
+
+// Backward-compat alias
+export const computeFlatBalances = computeGroupBalances;
 
 function optimizeSettlements(
   netMap: Map<string, number>,
@@ -148,10 +143,8 @@ function optimizeSettlements(
   return transactions;
 }
 
-// ─── Server actions ───────────────────────────────────────────────────────────
-
 const recordSettlementSchema = z.object({
-  flatId: z.string().uuid(),
+  groupId: z.string().uuid(),
   toUserId: z.string().uuid(),
   amount: z.number().positive("Amount must be positive"),
   method: z.string().max(50).optional(),
@@ -166,27 +159,26 @@ export async function recordSettlement(
   const parsed = recordSettlementSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Invalid input" };
 
-  const { flatId, toUserId, amount, method, reference, note } = parsed.data;
+  const { groupId, toUserId, amount, method, reference, note } = parsed.data;
 
   const [membership] = await db
-    .select({ id: flatMembers.id })
-    .from(flatMembers)
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.flatId, flatId),
-        eq(flatMembers.userId, userId),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) return { success: false, error: "Not a member of this flat" };
+  if (!membership) return { success: false, error: "Not a member of this group" };
 
-  // Create settlement record
   const [settlement] = await db
     .insert(settlements)
     .values({
-      flatId,
+      groupId,
       fromUserId: userId,
       toUserId,
       amount: String(amount),
@@ -196,10 +188,9 @@ export async function recordSettlement(
     })
     .returning({ id: settlements.id });
 
-  // Create payment record
   await db.insert(payments).values({
     settlementId: settlement.id,
-    flatId,
+    groupId,
     fromUserId: userId,
     toUserId,
     amount: String(amount),
@@ -208,7 +199,6 @@ export async function recordSettlement(
     note: note ?? null,
   });
 
-  // Auto-mark expense shares as paid (oldest first, up to amount)
   const unpaidShares = await db
     .select({
       id: expenseParticipants.id,
@@ -222,7 +212,7 @@ export async function recordSettlement(
         eq(expenseParticipants.userId, userId),
         eq(expenseParticipants.isPaid, false),
         eq(expenses.paidById, toUserId),
-        eq(expenses.flatId, flatId)
+        eq(expenses.groupId, groupId)
       )
     )
     .orderBy(asc(expenses.date));
@@ -247,7 +237,6 @@ export async function recordSettlement(
       .set({ isPaid: true })
       .where(inArray(expenseParticipants.id, toMarkPaid));
 
-    // Auto-settle expenses where all participants have now paid
     for (const expenseId of affectedExpenseIds) {
       const [unpaid] = await db
         .select({ count: count() })
@@ -268,7 +257,6 @@ export async function recordSettlement(
     }
   }
 
-  // Get user names for notification
   const [fromUser] = await db
     .select({ name: users.name })
     .from(users)
@@ -277,7 +265,7 @@ export async function recordSettlement(
 
   await notifyUsers(
     [toUserId],
-    flatId,
+    groupId,
     "settlement_completed",
     "Payment received",
     `${fromUser?.name ?? "Someone"} paid you ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,

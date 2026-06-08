@@ -5,9 +5,9 @@ import { Send, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { sendFlatInvite } from "@/actions/flats";
+import { sendGroupInvite } from "@/actions/groups";
 
-export function SendInviteForm({ flatId }: { flatId: string }) {
+export function SendInviteForm({ groupId }: { groupId: string }) {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
@@ -16,7 +16,7 @@ export function SendInviteForm({ flatId }: { flatId: string }) {
     if (!email.trim()) return;
     setLoading(true);
     try {
-      const result = await sendFlatInvite(flatId, email.trim());
+      const result = await sendGroupInvite(groupId, email.trim());
       if (!result.success) {
         toast.error(result.error ?? "Failed to send invite");
         return;

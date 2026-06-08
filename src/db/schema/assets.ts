@@ -8,7 +8,7 @@ import {
   numeric,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const assetConditionEnum = pgEnum("asset_condition", [
   "excellent",
@@ -19,9 +19,9 @@ export const assetConditionEnum = pgEnum("asset_condition", [
 
 export const assets = pgTable("assets", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   ownedById: uuid("owned_by_id").references(() => users.id, {
     onDelete: "set null",
   }),

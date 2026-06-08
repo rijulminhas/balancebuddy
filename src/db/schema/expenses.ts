@@ -7,9 +7,10 @@ import {
   pgEnum,
   numeric,
   boolean,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const expenseCategoryEnum = pgEnum("expense_category", [
   "groceries",
@@ -31,9 +32,9 @@ export const splitTypeEnum = pgEnum("split_type", [
 
 export const expenses = pgTable("expenses", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   paidById: uuid("paid_by_id")
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -43,6 +44,7 @@ export const expenses = pgTable("expenses", {
   category: expenseCategoryEnum("category").default("miscellaneous").notNull(),
   splitType: splitTypeEnum("split_type").default("equal").notNull(),
   receiptUrl: text("receipt_url"),
+  receiptUrls: jsonb("receipt_urls").$type<string[]>().default([]),
   date: timestamp("date").defaultNow().notNull(),
   isSettled: boolean("is_settled").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),

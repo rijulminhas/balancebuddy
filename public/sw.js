@@ -1,5 +1,5 @@
-// RoomSync Service Worker — v2
-const CACHE_NAME = "roomsync-v2";
+// BalanceBuddy Service Worker — v2
+const CACHE_NAME = "balancebuddy-v2";
 const STATIC_ASSETS = ["/", "/dashboard", "/offline.html"];
 
 // ── Install ──────────────────────────────────────────────────────────────────
@@ -55,15 +55,15 @@ self.addEventListener("push", (event) => {
   try {
     data = event.data.json();
   } catch {
-    data = { title: "RoomSync", body: event.data.text(), url: "/notifications" };
+    data = { title: "BalanceBuddy", body: event.data.text(), url: "/notifications" };
   }
 
-  const title = data.title ?? "RoomSync";
+  const title = data.title ?? "BalanceBuddy";
   const options = {
     body: data.body ?? "",
     icon: "/icon-192x192.png",
     badge: "/icon-192x192.png",
-    tag: data.tag ?? "roomsync-notification",
+    tag: data.tag ?? "balancebuddy-notification",
     renotify: true,
     data: { url: data.url ?? "/notifications" },
     actions: [

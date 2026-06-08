@@ -26,16 +26,16 @@ const features = [
     title: "Chore Tracking",
     desc: "Assign recurring chores, track completion, and keep everyone accountable.",
   },
-  {
-    icon: Package,
-    title: "Inventory & Assets",
-    desc: "Know what's running low and who owns what in your shared home.",
-  },
-  {
-    icon: MessageSquare,
-    title: "Real-time Chat",
-    desc: "Group chat with automatic updates when expenses or chores change.",
-  },
+  // {
+  //   icon: Package,
+  //   title: "Inventory & Assets",
+  //   desc: "Know what's running low and who owns what in your shared home.",
+  // },
+  // {
+  //   icon: MessageSquare,
+  //   title: "Real-time Chat",
+  //   desc: "Group chat with automatic updates when expenses or chores change.",
+  // },
   {
     icon: Bell,
     title: "Push Notifications",
@@ -51,9 +51,9 @@ export default function LandingPage() {
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
-              RS
+              BB
             </div>
-            <span className="text-sm">RoomSync</span>
+            <span className="text-sm">BalanceBuddy</span>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="ghost" size="sm" asChild>
@@ -70,16 +70,16 @@ export default function LandingPage() {
       <section className="flex flex-1 flex-col items-center justify-center px-4 py-24 text-center">
         <div className="mx-auto max-w-2xl">
           <div className="mb-4 inline-flex items-center rounded-full border px-3 py-1 text-xs text-muted-foreground">
-            The Flatmate Operating System
+            The Expense Management Operating System
           </div>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl">
-            Living together,{" "}
-            <span className="text-muted-foreground">made simple.</span>
+            Manage shared expenses,{" "}
+            <span className="text-muted-foreground">together.</span>
           </h1>
           <p className="mt-4 text-base text-muted-foreground sm:text-lg">
-            RoomSync centralizes expenses, chores, inventory, assets, and chat
-            for your flat, PG, or co-living space — so you spend less time
-            managing and more time living.
+            BalanceBuddy helps friends, roommates, travel groups, and
+            communities manage shared expenses, tasks, settlements, and everyday
+            coordination in one place.
           </p>
           <div className="mt-8 flex flex-wrap justify-center gap-3">
             <Button size="lg" asChild>
@@ -99,9 +99,9 @@ export default function LandingPage() {
       <section className="border-t bg-muted/30 py-20 px-4">
         <div className="mx-auto max-w-5xl">
           <h2 className="mb-12 text-center text-2xl font-semibold tracking-tight">
-            Everything your flat needs, in one place
+            Everything your group needs, in one place
           </h2>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-2">
             {features.map(({ icon: Icon, title, desc }) => (
               <div
                 key={title}
@@ -122,14 +122,14 @@ export default function LandingPage() {
       <section className="py-20 px-4 text-center">
         <div className="mx-auto max-w-xl">
           <h2 className="mb-3 text-2xl font-semibold tracking-tight">
-            Ready to sync your flat?
+          Ready to simplify shared expenses?
           </h2>
           <p className="mb-6 text-sm text-muted-foreground">
             Free to use. No credit card required.
           </p>
           <Button size="lg" asChild>
             <Link href="/register">
-              Create your flat
+             Create your group
               <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </Button>
@@ -138,7 +138,7 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="border-t py-6 text-center text-xs text-muted-foreground">
-        &copy; 2026 RoomSync. All rights reserved.
+        &copy; 2026 BalanceBuddy. All rights reserved.
       </footer>
     </div>
   );

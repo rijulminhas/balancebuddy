@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { chores, flatMembers, users } from "@/db/schema";
+import { chores, groupMembers, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -9,7 +9,7 @@ import { notifyUsers } from "@/lib/notify";
 import type { ActionResult } from "./auth";
 
 const choreSchema = z.object({
-  flatId: z.string().uuid(),
+  groupId: z.string().uuid(),
   title: z.string().min(1).max(255),
   description: z.string().max(500).optional(),
   assignedToId: z.string().uuid().optional(),
@@ -28,26 +28,26 @@ export async function createChore(
   const parsed = choreSchema.safeParse(input);
   if (!parsed.success) return { success: false, error: "Invalid input" };
 
-  const { flatId, assignedToId, dueDate, ...rest } = parsed.data;
+  const { groupId, assignedToId, dueDate, ...rest } = parsed.data;
 
   const [membership] = await db
-    .select({ id: flatMembers.id })
-    .from(flatMembers)
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.flatId, flatId),
-        eq(flatMembers.userId, userId),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) return { success: false, error: "Not a member of this flat" };
+  if (!membership) return { success: false, error: "Not a member of this group" };
 
   const [chore] = await db
     .insert(chores)
     .values({
-      flatId,
+      groupId,
       createdById: userId,
       assignedToId: assignedToId ?? null,
       dueDate: dueDate ? new Date(dueDate) : null,
@@ -55,7 +55,6 @@ export async function createChore(
     })
     .returning({ id: chores.id });
 
-  // Notify the assigned user (if different from creator)
   if (assignedToId && assignedToId !== userId) {
     const [creator] = await db
       .select({ name: users.name })
@@ -65,7 +64,7 @@ export async function createChore(
 
     await notifyUsers(
       [assignedToId],
-      flatId,
+      groupId,
       "chore_assigned",
       "Chore assigned to you",
       `${creator?.name ?? "Someone"} assigned you: ${rest.title}`,
@@ -85,7 +84,7 @@ export async function updateChoreStatus(
   status: "pending" | "in_progress" | "completed" | "skipped"
 ): Promise<ActionResult> {
   const [chore] = await db
-    .select({ id: chores.id, flatId: chores.flatId, title: chores.title })
+    .select({ id: chores.id, groupId: chores.groupId, title: chores.title })
     .from(chores)
     .where(eq(chores.id, choreId))
     .limit(1);
@@ -93,13 +92,13 @@ export async function updateChoreStatus(
   if (!chore) return { success: false, error: "Chore not found" };
 
   const [membership] = await db
-    .select({ id: flatMembers.id })
-    .from(flatMembers)
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.flatId, chore.flatId),
-        eq(flatMembers.userId, userId),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, chore.groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
@@ -117,7 +116,6 @@ export async function updateChoreStatus(
     })
     .where(eq(chores.id, choreId));
 
-  // Notify flat members when a chore is completed
   if (status === "completed") {
     const [completer] = await db
       .select({ name: users.name })
@@ -126,12 +124,12 @@ export async function updateChoreStatus(
       .limit(1);
 
     const allMembers = await db
-      .select({ userId: flatMembers.userId })
-      .from(flatMembers)
+      .select({ userId: groupMembers.userId })
+      .from(groupMembers)
       .where(
         and(
-          eq(flatMembers.flatId, chore.flatId),
-          eq(flatMembers.status, "active")
+          eq(groupMembers.groupId, chore.groupId),
+          eq(groupMembers.status, "active")
         )
       );
 
@@ -142,7 +140,7 @@ export async function updateChoreStatus(
     if (otherMemberIds.length > 0) {
       await notifyUsers(
         otherMemberIds,
-        chore.flatId,
+        chore.groupId,
         "chore_completed",
         "Chore completed",
         `${completer?.name ?? "Someone"} completed: ${chore.title}`,

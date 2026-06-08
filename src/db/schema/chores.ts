@@ -9,7 +9,7 @@ import {
   integer,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const choreStatusEnum = pgEnum("chore_status", [
   "pending",
@@ -28,9 +28,9 @@ export const choreFrequencyEnum = pgEnum("chore_frequency", [
 
 export const chores = pgTable("chores", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   description: text("description"),
   assignedToId: uuid("assigned_to_id").references(() => users.id, {

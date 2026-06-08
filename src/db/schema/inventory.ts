@@ -10,7 +10,7 @@ import {
   boolean,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const inventoryCategoryEnum = pgEnum("inventory_category", [
   "groceries",
@@ -23,9 +23,9 @@ export const inventoryCategoryEnum = pgEnum("inventory_category", [
 
 export const inventoryItems = pgTable("inventory_items", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   addedById: uuid("added_by_id")
     .notNull()
     .references(() => users.id, { onDelete: "restrict" }),
@@ -33,7 +33,7 @@ export const inventoryItems = pgTable("inventory_items", {
   description: text("description"),
   category: inventoryCategoryEnum("category").default("other").notNull(),
   quantity: numeric("quantity", { precision: 10, scale: 2 }).notNull().default("0"),
-  unit: varchar("unit", { length: 50 }), // kg, liters, pieces, etc.
+  unit: varchar("unit", { length: 50 }),
   minQuantity: numeric("min_quantity", { precision: 10, scale: 2 }),
   lowStockAlert: boolean("low_stock_alert").default(true).notNull(),
   imageUrl: text("image_url"),

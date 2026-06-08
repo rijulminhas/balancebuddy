@@ -10,7 +10,7 @@ type NotificationType =
   | "chore_completed"
   | "settlement_requested"
   | "settlement_completed"
-  | "flat_invitation"
+  | "group_invitation"
   | "member_joined"
   | "member_left"
   | "bill_due"
@@ -19,7 +19,7 @@ type NotificationType =
 
 export async function notifyUsers(
   userIds: string[],
-  flatId: string,
+  groupId: string,
   type: NotificationType,
   title: string,
   body: string,
@@ -30,7 +30,7 @@ export async function notifyUsers(
   await db.insert(notifications).values(
     userIds.map((userId) => ({
       userId,
-      flatId,
+      groupId,
       type,
       title,
       body,

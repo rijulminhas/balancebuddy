@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -8,7 +8,7 @@ import type { Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Loader2, Info } from "lucide-react";
+import { Loader2, Info, ImagePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +52,7 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-interface FlatMember { userId: string; name: string; }
+interface GroupMember { userId: string; name: string; }
 
 function fmt(n: number) {
   return n.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -62,11 +62,13 @@ export default function NewExpensePage() {
   const { data: session } = useSession();
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [flatId, setFlatId] = useState<string | null>(null);
-  const [members, setMembers] = useState<FlatMember[]>([]);
+  const [groupId, setGroupId] = useState<string | null>(null);
+  const [members, setMembers] = useState<GroupMember[]>([]);
   const [selectedMembers, setSelectedMembers] = useState<string[]>([]);
-  // customSplits: userId -> string (so inputs stay editable)
   const [customSplits, setCustomSplits] = useState<Record<string, string>>({});
+  const [receiptFiles, setReceiptFiles] = useState<File[]>([]);
+  const [receiptPreviews, setReceiptPreviews] = useState<string[]>([]);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema) as Resolver<FormValues>,
@@ -84,15 +86,14 @@ export default function NewExpensePage() {
   const splitType = form.watch("splitType");
 
   useEffect(() => {
-    fetch("/api/flats/me").then((r) => r.json()).then((data) => {
-      setFlatId(data.flatId);
-      const mems: FlatMember[] = data.members ?? [];
+    fetch("/api/groups/me").then((r) => r.json()).then((data) => {
+      setGroupId(data.groupId);
+      const mems: GroupMember[] = data.members ?? [];
       setMembers(mems);
       setSelectedMembers(mems.map((m) => m.userId));
     });
   }, []);
 
-  // Reset custom splits when splitType or selectedMembers change
   useEffect(() => {
     if (splitType === "percentage") {
       const even = selectedMembers.length
@@ -122,11 +123,34 @@ export default function NewExpensePage() {
     setCustomSplits((prev) => ({ ...prev, [userId]: val }));
   }, []);
 
-  // Derived: per-member share for display
+  function handleReceiptChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (receiptFiles.length + files.length > 5) {
+      toast.error("Maximum 5 images allowed.");
+      return;
+    }
+    const valid = files.filter((f) => {
+      if (f.size > 5 * 1024 * 1024) { toast.error(`${f.name} exceeds 5 MB.`); return false; }
+      return true;
+    });
+    setReceiptFiles((prev) => [...prev, ...valid]);
+    valid.forEach((f) => {
+      const reader = new FileReader();
+      reader.onload = (ev) =>
+        setReceiptPreviews((prev) => [...prev, ev.target?.result as string]);
+      reader.readAsDataURL(f);
+    });
+    e.target.value = "";
+  }
+
+  function removeReceipt(index: number) {
+    setReceiptFiles((prev) => prev.filter((_, i) => i !== index));
+    setReceiptPreviews((prev) => prev.filter((_, i) => i !== index));
+  }
+
   function getShares(): Record<string, number> {
     const result: Record<string, number> = {};
     if (!selectedMembers.length) return result;
-
     if (splitType === "equal") {
       const share = Math.round((amount / selectedMembers.length) * 100) / 100;
       selectedMembers.forEach((id) => { result[id] = share; });
@@ -143,7 +167,6 @@ export default function NewExpensePage() {
     return result;
   }
 
-  // Validation for custom splits
   function getSplitError(): string | null {
     if (splitType === "equal" || !selectedMembers.length) return null;
     if (splitType === "percentage") {
@@ -158,8 +181,8 @@ export default function NewExpensePage() {
   }
 
   async function onSubmit(values: FormValues) {
-    if (!session?.user?.id || !flatId) {
-      toast.error("You must be in a flat to add expenses.");
+    if (!session?.user?.id || !groupId) {
+      toast.error("You must be in a group to add expenses.");
       return;
     }
     if (selectedMembers.length === 0) {
@@ -167,13 +190,20 @@ export default function NewExpensePage() {
       return;
     }
     const splitError = getSplitError();
-    if (splitError) {
-      toast.error(splitError);
-      return;
-    }
+    if (splitError) { toast.error(splitError); return; }
 
     setIsLoading(true);
     try {
+      const receiptUrls: string[] = [];
+      for (const file of receiptFiles) {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/upload", { method: "POST", body: fd });
+        const data = await res.json();
+        if (!res.ok) { toast.error(data.error ?? "Upload failed"); setIsLoading(false); return; }
+        receiptUrls.push(data.url);
+      }
+
       const parsedCustomSplits: Record<string, number> = {};
       if (values.splitType !== "equal") {
         selectedMembers.forEach((id) => {
@@ -182,12 +212,13 @@ export default function NewExpensePage() {
       }
 
       const result = await createExpense(session.user.id, {
-        flatId,
+        groupId,
         ...values,
         splitType: values.splitType as "equal" | "percentage" | "amount" | "custom",
         date: new Date(values.date).toISOString(),
         participantIds: selectedMembers,
         customSplits: values.splitType !== "equal" ? parsedCustomSplits : undefined,
+        receiptUrls,
       });
 
       if (!result.success) { toast.error(result.error); return; }
@@ -312,6 +343,47 @@ export default function NewExpensePage() {
                   </FormItem>
                 )}
               />
+
+              {/* Receipt images */}
+              <div className="space-y-2">
+                <p className="text-sm font-medium">
+                  Receipt / Bill images
+                  <span className="ml-1 text-xs font-normal text-muted-foreground">(optional, max 5)</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {receiptPreviews.map((src, i) => (
+                    <div key={i} className="relative h-20 w-20 shrink-0 overflow-hidden rounded-lg border">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={src} alt={`receipt-${i}`} className="h-full w-full object-cover" />
+                      <button
+                        type="button"
+                        onClick={() => removeReceipt(i)}
+                        className="absolute right-0.5 top-0.5 flex h-5 w-5 items-center justify-center rounded-full bg-black/60 text-white hover:bg-black/80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                  {receiptFiles.length < 5 && (
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="flex h-20 w-20 shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-dashed text-muted-foreground hover:border-primary hover:text-primary transition-colors"
+                    >
+                      <ImagePlus className="h-5 w-5" />
+                      <span className="text-[10px]">Add</span>
+                    </button>
+                  )}
+                </div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={handleReceiptChange}
+                />
+              </div>
             </CardContent>
           </Card>
 
@@ -325,7 +397,6 @@ export default function NewExpensePage() {
                 <p className="text-xs text-muted-foreground">Loading members…</p>
               ) : (
                 <>
-                  {/* Column headers for custom splits */}
                   {splitType !== "equal" && (
                     <div className="flex items-center justify-between text-xs text-muted-foreground px-0.5 mb-1">
                       <span>Member</span>
@@ -358,10 +429,7 @@ export default function NewExpensePage() {
                         {checked && splitType === "percentage" && (
                           <div className="flex items-center gap-1 shrink-0">
                             <Input
-                              type="number"
-                              min="0"
-                              max="100"
-                              step="0.01"
+                              type="number" min="0" max="100" step="0.01"
                               className="h-7 w-20 text-xs text-right"
                               value={customSplits[m.userId] ?? ""}
                               onChange={(e) => setSplit(m.userId, e.target.value)}
@@ -377,9 +445,7 @@ export default function NewExpensePage() {
                           <div className="flex items-center gap-1 shrink-0">
                             <span className="text-xs text-muted-foreground">₹</span>
                             <Input
-                              type="number"
-                              min="0"
-                              step="0.01"
+                              type="number" min="0" step="0.01"
                               className="h-7 w-24 text-xs text-right"
                               value={customSplits[m.userId] ?? ""}
                               onChange={(e) => setSplit(m.userId, e.target.value)}
@@ -394,7 +460,6 @@ export default function NewExpensePage() {
                     );
                   })}
 
-                  {/* Split summary / error */}
                   {splitType === "equal" && selectedMembers.length > 0 && amount > 0 && (
                     <div className="mt-2 flex items-center gap-1.5 rounded-md bg-muted/50 px-3 py-2 text-xs text-muted-foreground">
                       <Info className="h-3.5 w-3.5 shrink-0" />
@@ -417,7 +482,7 @@ export default function NewExpensePage() {
           </Card>
 
           <div className="flex gap-3">
-            <Button type="submit" disabled={isLoading || !flatId || !!splitError}>
+            <Button type="submit" disabled={isLoading || !groupId || !!splitError}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Add expense
             </Button>

@@ -26,7 +26,7 @@ interface Member {
 }
 
 interface ChoreFormProps {
-  flatId: string;
+  groupId: string;
   members: Member[];
 }
 
@@ -42,7 +42,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export function ChoreForm({ flatId, members }: ChoreFormProps) {
+export function ChoreForm({ groupId, members }: ChoreFormProps) {
   const { data: session } = useSession();
   const router = useRouter();
 
@@ -68,7 +68,7 @@ export function ChoreForm({ flatId, members }: ChoreFormProps) {
     if (!session?.user?.id) return;
 
     const result = await createChore(session.user.id, {
-      flatId,
+      groupId,
       ...data,
       assignedToId: data.assignedToId || undefined,
       dueDate: data.dueDate

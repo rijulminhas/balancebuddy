@@ -60,10 +60,26 @@ export const authOptions: NextAuthOptions = {
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.id = user.id;
         token.emailVerified = (user as { emailVerified?: Date | null }).emailVerified;
+      }
+      // Refresh token fields when profile is updated via useSession().update()
+      if (trigger === "update" && session) {
+        if (typeof session.name === "string") token.name = session.name;
+        // Only accept non-base64 values to keep JWT cookie size small.
+        // The profile form sends a proxy URL (/api/users/[id]/avatar) for uploads.
+        if (session.image === null) {
+          token.picture = undefined;
+        } else if (typeof session.image === "string" && !session.image.startsWith("data:")) {
+          token.picture = session.image;
+        }
+      }
+      // Sanitize on every refresh: replace any base64 that snuck into the JWT
+      // (e.g. from a previous session) with the lightweight proxy URL.
+      if (typeof token.picture === "string" && token.picture.startsWith("data:")) {
+        token.picture = `/api/users/${token.id as string}/avatar`;
       }
       return token;
     },

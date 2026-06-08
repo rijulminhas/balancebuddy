@@ -72,11 +72,11 @@ export function Header({ session, onMenuClick }: HeaderProps) {
                 <User className="mr-2 h-4 w-4" />Profile
               </Link>
             </DropdownMenuItem>
-            <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
+            {/* <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
               <Link href="/settings">
                 <Settings className="mr-2 h-4 w-4" />Settings
               </Link>
-            </DropdownMenuItem>
+            </DropdownMenuItem> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="rounded-lg font-semibold text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { expenses, expenseParticipants, flatMembers, users } from "@/db/schema";
+import { expenses, expenseParticipants, groupMembers, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET(
@@ -24,9 +24,10 @@ export async function GET(
       date: expenses.date,
       isSettled: expenses.isSettled,
       description: expenses.description,
-      flatId: expenses.flatId,
+      groupId: expenses.groupId,
       paidById: expenses.paidById,
       paidByName: users.name,
+      receiptUrls: expenses.receiptUrls,
     })
     .from(expenses)
     .innerJoin(users, eq(expenses.paidById, users.id))
@@ -35,15 +36,14 @@ export async function GET(
 
   if (!expense) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  // Verify session user is a member of this flat
   const [membership] = await db
-    .select({ id: flatMembers.id })
-    .from(flatMembers)
+    .select({ id: groupMembers.id })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.flatId, expense.flatId),
-        eq(flatMembers.userId, session.user.id),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.groupId, expense.groupId),
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);

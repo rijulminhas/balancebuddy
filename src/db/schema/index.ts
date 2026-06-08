@@ -1,5 +1,5 @@
 export * from "./users";
-export * from "./flats";
+export * from "./groups";
 export * from "./expenses";
 export * from "./settlements";
 export * from "./chores";

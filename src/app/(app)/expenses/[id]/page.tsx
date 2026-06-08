@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,6 +30,7 @@ interface ExpenseDetail {
   description: string | null;
   paidById: string;
   paidByName: string;
+  receiptUrls: string[] | null;
   participants: Participant[];
 }
 
@@ -126,6 +127,34 @@ export default function ExpenseDetailPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Receipt images */}
+      {expense.receiptUrls && expense.receiptUrls.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Receipt className="h-4 w-4" />
+              Receipt / Bill / Product
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-3">
+              {expense.receiptUrls.map((url, i) => (
+                <a
+                  key={i}
+                  href={url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block h-28 w-28 overflow-hidden rounded-lg border hover:opacity-90 transition-opacity"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={url} alt={`receipt-${i + 1}`} className="h-full w-full object-cover" />
+                </a>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Split breakdown */}
       <Card>

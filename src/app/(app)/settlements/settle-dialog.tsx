@@ -33,7 +33,7 @@ interface Member {
 }
 
 interface SettleDialogProps {
-  flatId: string;
+  groupId: string;
   members: Member[];
   defaultToUserId?: string;
   defaultAmount?: number;
@@ -51,7 +51,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export function SettleDialog({
-  flatId,
+  groupId,
   members,
   defaultToUserId,
   defaultAmount,
@@ -81,7 +81,7 @@ export function SettleDialog({
   async function onSubmit(data: FormData) {
     if (!session?.user?.id) return;
     const result = await recordSettlement(session.user.id, {
-      flatId,
+      groupId,
       ...data,
     });
     if (!result.success) {

@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { flatMembers, settlements, users } from "@/db/schema";
+import { groupMembers, settlements, users } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import type { Metadata } from "next";
@@ -24,7 +24,7 @@ import {
   Plus,
 } from "lucide-react";
 import { format } from "date-fns";
-import { computeFlatBalances } from "@/actions/settlements";
+import { computeGroupBalances } from "@/actions/settlements";
 import { SettleDialog } from "./settle-dialog";
 
 export const metadata: Metadata = { title: "Settlements" };
@@ -38,30 +38,30 @@ export default async function SettlementsPage() {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId })
-    .from(flatMembers)
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.userId, session.user.id),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) redirect("/flats");
+  if (!membership) redirect("/groups");
 
-  const { flatId } = membership;
+  const { groupId } = membership;
 
   const [{ memberBalances, optimizedTransactions }, allMembers, recentSettlements] =
     await Promise.all([
-      computeFlatBalances(flatId),
+      computeGroupBalances(groupId),
 
       db
         .select({ id: users.id, name: users.name })
         .from(users)
-        .innerJoin(flatMembers, eq(flatMembers.userId, users.id))
+        .innerJoin(groupMembers, eq(groupMembers.userId, users.id))
         .where(
-          and(eq(flatMembers.flatId, flatId), eq(flatMembers.status, "active"))
+          and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))
         ),
 
       db
@@ -76,7 +76,7 @@ export default async function SettlementsPage() {
           createdAt: settlements.createdAt,
         })
         .from(settlements)
-        .where(eq(settlements.flatId, flatId))
+        .where(eq(settlements.groupId, groupId))
         .orderBy(desc(settlements.createdAt))
         .limit(30),
     ]);
@@ -109,7 +109,7 @@ export default async function SettlementsPage() {
             Smart debt optimization — minimize transactions
           </p>
         </div>
-        <SettleDialog flatId={flatId} members={membersForDialog}>
+        <SettleDialog groupId={groupId} members={membersForDialog}>
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Record Payment
@@ -179,7 +179,7 @@ export default async function SettlementsPage() {
               <div>
                 <p className="font-bold text-sm">All settled up!</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  No outstanding debts in your flat.
+                  No outstanding debts in your group.
                 </p>
               </div>
             </CardContent>
@@ -239,7 +239,7 @@ export default async function SettlementsPage() {
                     <span className="font-bold text-sm">₹{fmt(t.amount)}</span>
                     {isFromMe && (
                       <SettleDialog
-                        flatId={flatId}
+                        groupId={groupId}
                         members={membersForDialog}
                         defaultToUserId={t.toUserId}
                         defaultAmount={t.amount}
@@ -262,11 +262,11 @@ export default async function SettlementsPage() {
         </Card>
       )}
 
-      {/* Flat balance summary */}
+      {/* Group balance summary */}
       {memberBalances.length > 0 && (
         <Card className="border-border/60">
           <CardHeader className="pb-3">
-            <CardTitle className="text-base font-bold">Flat balance summary</CardTitle>
+            <CardTitle className="text-base font-bold">Group balance summary</CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <Table>

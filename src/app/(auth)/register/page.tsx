@@ -67,7 +67,7 @@ export default function RegisterPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-black tracking-tight">Create account</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Join RoomSync to manage your flat</p>
+        <p className="mt-1 text-sm text-muted-foreground">Join BalanceBuddy to manage your Expenses</p>
       </div>
 
       <Form {...form}>

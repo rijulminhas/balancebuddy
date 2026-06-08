@@ -8,7 +8,7 @@ import {
   jsonb,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
-import { flats } from "./flats";
+import { groups } from "./groups";
 
 export const messageTypeEnum = pgEnum("message_type", [
   "text",
@@ -21,9 +21,9 @@ export const messageTypeEnum = pgEnum("message_type", [
 
 export const messages = pgTable("messages", {
   id: uuid("id").primaryKey().defaultRandom(),
-  flatId: uuid("flat_id")
+  groupId: uuid("group_id")
     .notNull()
-    .references(() => flats.id, { onDelete: "cascade" }),
+    .references(() => groups.id, { onDelete: "cascade" }),
   senderId: uuid("sender_id").references(() => users.id, {
     onDelete: "set null",
   }),

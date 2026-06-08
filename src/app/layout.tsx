@@ -12,16 +12,16 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "RoomSync",
-    template: "%s | RoomSync",
+    default: "BalanceBuddy",
+    template: "%s | BalanceBuddy",
   },
   description:
-    "The Flatmate Operating System — manage expenses, chores, inventory and more for your shared home.",
+    "The Expense Management Operating System — manage expenses, chores, inventory and more for your shared home.",
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "RoomSync",
+    title: "BalanceBuddy",
   },
 };
 

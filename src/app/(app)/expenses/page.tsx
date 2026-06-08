@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { expenses, expenseParticipants, flatMembers, users } from "@/db/schema";
+import { expenses, expenseParticipants, groupMembers, users } from "@/db/schema";
 import { eq, and, desc } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -38,12 +38,12 @@ export default async function ExpensesPage() {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId })
-    .from(flatMembers)
-    .where(and(eq(flatMembers.userId, session.user.id), eq(flatMembers.status, "active")))
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, session.user.id), eq(groupMembers.status, "active")))
     .limit(1);
 
-  if (!membership) redirect("/flats");
+  if (!membership) redirect("/groups");
 
   const expenseList = await db
     .select({
@@ -59,11 +59,10 @@ export default async function ExpensesPage() {
     })
     .from(expenses)
     .innerJoin(users, eq(expenses.paidById, users.id))
-    .where(eq(expenses.flatId, membership.flatId))
+    .where(eq(expenses.groupId, membership.groupId))
     .orderBy(desc(expenses.date))
     .limit(50);
 
-  // Fetch my participant rows for all expenses to compute summary
   const myParticipations = await db
     .select({
       expenseId: expenseParticipants.expenseId,
@@ -77,19 +76,16 @@ export default async function ExpensesPage() {
     myParticipations.map((p) => [p.expenseId, { shareAmount: Number(p.shareAmount), isPaid: p.isPaid }])
   );
 
-  // Summary calculations
-  let totalSpent = 0;   // total of expenses I paid
-  let iOwe = 0;         // sum of my unpaid shares where I didn't pay
-  let owedToMe = 0;     // sum of others' unpaid shares on expenses I paid
+  let totalSpent = 0;
+  let iOwe = 0;
+  let owedToMe = 0;
 
-  // For owedToMe we need all participants on expenses I paid
   const myPaidExpenseIds = expenseList
     .filter((e) => e.paidById === session.user.id)
     .map((e) => e.id);
 
   let othersOwingRows: { expenseId: string; shareAmount: string; isPaid: boolean; userId: string }[] = [];
   if (myPaidExpenseIds.length > 0) {
-    // Fetch all participants for expenses I paid
     const rows = await db
       .select({
         expenseId: expenseParticipants.expenseId,
@@ -204,6 +200,7 @@ export default async function ExpensesPage() {
                     <TableHead>Date</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead></TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -211,14 +208,9 @@ export default async function ExpensesPage() {
                     const myShare = myShareMap.get(expense.id);
                     const iAmPayer = expense.paidById === session.user.id;
                     return (
-                      <TableRow
-                        key={expense.id}
-                        className="cursor-pointer hover:bg-muted/50"
-                      >
+                      <TableRow key={expense.id}>
                         <TableCell className="font-medium text-sm">
-                          <Link href={`/expenses/${expense.id}`} className="hover:underline">
-                            {expense.title}
-                          </Link>
+                          {expense.title}
                         </TableCell>
                         <TableCell>
                           <Badge variant={categoryColors[expense.category] ?? "outline"}>
@@ -254,6 +246,11 @@ export default async function ExpensesPage() {
                           <Badge variant={expense.isSettled ? "success" : "warning"}>
                             {expense.isSettled ? "Settled" : "Pending"}
                           </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button asChild size="sm" variant="outline">
+                            <Link href={`/expenses/${expense.id}`}>View details</Link>
+                          </Button>
                         </TableCell>
                       </TableRow>
                     );

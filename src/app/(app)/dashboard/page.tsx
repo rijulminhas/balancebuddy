@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { flatMembers, flats, expenses, expenseParticipants, chores, settlements } from "@/db/schema";
+import { groupMembers, groups, expenses, expenseParticipants, chores, settlements } from "@/db/schema";
 import { eq, and, count, sum } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -25,52 +25,51 @@ export const metadata: Metadata = { title: "Dashboard" };
 
 async function getDashboardData(userId: string) {
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId, role: flatMembers.role })
-    .from(flatMembers)
-    .where(and(eq(flatMembers.userId, userId), eq(flatMembers.status, "active")))
+    .select({ groupId: groupMembers.groupId, role: groupMembers.role })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")))
     .limit(1);
 
   if (!membership) return null;
 
-  const { flatId } = membership;
+  const { groupId } = membership;
 
-  const [[flatInfo], [memberCount], [expenseStats], pendingChores, pendingSettlements, myOwed] =
+  const [[groupInfo], [memberCount], [expenseStats], pendingChores, pendingSettlements, myOwed] =
     await Promise.all([
-      db.select({ name: flats.name }).from(flats).where(eq(flats.id, flatId)).limit(1),
+      db.select({ name: groups.name }).from(groups).where(eq(groups.id, groupId)).limit(1),
 
-      db.select({ count: count() }).from(flatMembers)
-        .where(and(eq(flatMembers.flatId, flatId), eq(flatMembers.status, "active"))),
+      db.select({ count: count() }).from(groupMembers)
+        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))),
 
       db.select({ total: sum(expenses.amount), expenseCount: count() })
         .from(expenses)
-        .where(and(eq(expenses.flatId, flatId), eq(expenses.isSettled, false))),
+        .where(and(eq(expenses.groupId, groupId), eq(expenses.isSettled, false))),
 
       db.select({ id: chores.id, title: chores.title, assignedToId: chores.assignedToId })
         .from(chores)
-        .where(and(eq(chores.flatId, flatId), eq(chores.status, "pending")))
+        .where(and(eq(chores.groupId, groupId), eq(chores.status, "pending")))
         .limit(5),
 
       db.select({ id: settlements.id, amount: settlements.amount, fromUserId: settlements.fromUserId })
         .from(settlements)
-        .where(and(eq(settlements.flatId, flatId), eq(settlements.status, "pending"), eq(settlements.toUserId, userId)))
+        .where(and(eq(settlements.groupId, groupId), eq(settlements.status, "pending"), eq(settlements.toUserId, userId)))
         .limit(5),
 
-      // My unpaid shares
       db.select({ shareAmount: expenseParticipants.shareAmount })
         .from(expenseParticipants)
         .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
         .where(and(
           eq(expenseParticipants.userId, userId),
           eq(expenseParticipants.isPaid, false),
-          eq(expenses.flatId, flatId),
+          eq(expenses.groupId, groupId),
         )),
     ]);
 
   const iOwe = myOwed.reduce((s, r) => s + Number(r.shareAmount), 0);
 
   return {
-    flat: flatInfo,
-    flatId,
+    group: groupInfo,
+    groupId,
     role: membership.role,
     memberCount: memberCount.count,
     totalUnsettledExpenses: expenseStats.total ?? "0",
@@ -97,19 +96,19 @@ export default async function DashboardPage() {
         <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary/10">
           <Home className="h-10 w-10 text-primary" />
         </div>
-        <h2 className="mb-3 text-3xl font-black tracking-tight">No flat yet</h2>
+        <h2 className="mb-3 text-3xl font-black tracking-tight">No group yet</h2>
         <p className="mb-8 text-base text-muted-foreground max-w-xs">
-          Create a new flat or join an existing one with an invite code.
+          Create a new group or join an existing one with an invite code.
         </p>
         <div className="flex gap-3">
           <Button asChild size="lg" className="rounded-xl font-bold text-base px-6">
-            <Link href="/flats/create">
+            <Link href="/groups/create">
               <Plus className="mr-2 h-5 w-5" />
-              Create Flat
+              Create Group
             </Link>
           </Button>
           <Button variant="outline" size="lg" asChild className="rounded-xl font-bold text-base px-6">
-            <Link href="/flats/join">Join Flat</Link>
+            <Link href="/groups/join">Join Group</Link>
           </Button>
         </div>
       </div>
@@ -125,14 +124,14 @@ export default async function DashboardPage() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="text-xs font-bold uppercase tracking-widest text-primary">
-              {data.flat?.name ?? "Your Flat"}
+              {data.group?.name ?? "Your Group"}
             </span>
           </div>
           <h1 className="text-4xl font-black tracking-tight">
             Hey, {firstName} 👋
           </h1>
           <p className="mt-1.5 text-base text-muted-foreground">
-            Here&apos;s what&apos;s happening in your flat today.
+            Here&apos;s what&apos;s happening in your group today.
           </p>
         </div>
         <Button asChild size="lg" className="rounded-xl font-bold hidden sm:flex">
@@ -147,11 +146,11 @@ export default async function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
           {
-            label: "Flatmates",
+            label: "Groupmates",
             value: data.memberCount,
             suffix: "",
             icon: Users,
-            href: "/flats",
+            href: "/groups",
             color: "text-blue-500",
             bg: "bg-blue-500/10",
           },

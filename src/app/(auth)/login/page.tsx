@@ -59,7 +59,7 @@ export default function LoginPage() {
     <div className="space-y-6">
       <div>
         <h2 className="text-3xl font-black tracking-tight">Welcome back</h2>
-        <p className="mt-1 text-sm text-muted-foreground">Sign in to your RoomSync account</p>
+        <p className="mt-1 text-sm text-muted-foreground">Sign in to your BalanceBuddy account</p>
       </div>
 
       <Form {...form}>

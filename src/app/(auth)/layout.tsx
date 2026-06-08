@@ -14,10 +14,10 @@ export default function AuthLayout({
         {/* Logo */}
         <div className="relative flex items-center gap-3 z-10">
           <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-black shadow-lg shadow-primary/40">
-            RS
+            BB
           </div>
           <span className="text-xl font-black tracking-tight text-sidebar-foreground">
-            RoomSync
+            BalanceBuddy
           </span>
         </div>
 
@@ -58,9 +58,9 @@ export default function AuthLayout({
           <div className="flex lg:hidden justify-center mb-2">
             <div className="flex items-center gap-3">
               <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/30">
-                RS
+                BB
               </div>
-              <span className="text-lg font-black tracking-tight">RoomSync</span>
+              <span className="text-lg font-black tracking-tight">BalanceBuddy</span>
             </div>
           </div>
           {children}

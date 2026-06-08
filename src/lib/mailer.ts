@@ -14,7 +14,7 @@ export async function sendPasswordResetEmail(to: string, otp: string) {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: "Your RoomSync password reset OTP",
+    subject: "Your BalanceBuddy password reset OTP",
     html: `<p>Your password reset OTP is:</p>
            <h2 style="letter-spacing:4px">${otp}</h2>
            <p>It expires in 10 minutes. Do not share it with anyone.</p>`,
@@ -27,7 +27,7 @@ export async function sendVerificationEmail(to: string, token: string) {
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: "Verify your RoomSync email",
+    subject: "Verify your BalanceBuddy email",
     html: `<p>Click the link below to verify your email. It expires in 24 hours.</p>
            <a href="${verifyUrl}">${verifyUrl}</a>`,
   });
@@ -42,11 +42,11 @@ export async function sendInviteEmail(
   await transporter.sendMail({
     from: process.env.EMAIL_FROM,
     to,
-    subject: `${senderName} invited you to join ${flatName} on RoomSync`,
+    subject: `${senderName} invited you to join ${flatName} on BalanceBuddy`,
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
         <h2 style="margin-bottom:8px">You're invited! 🏠</h2>
-        <p style="color:#555"><strong>${senderName}</strong> has invited you to join <strong>${flatName}</strong> on RoomSync.</p>
+        <p style="color:#555"><strong>${senderName}</strong> has invited you to join <strong>${flatName}</strong> on BalanceBuddy.</p>
         <a href="${inviteUrl}" style="display:inline-block;margin:20px 0;padding:12px 24px;background:#6d28d9;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">
           Accept Invite
         </a>

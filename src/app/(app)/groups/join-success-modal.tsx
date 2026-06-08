@@ -9,19 +9,19 @@ import { PartyPopper } from "lucide-react";
 export function JoinSuccessModal() {
   const searchParams = useSearchParams();
   const router = useRouter();
-  const flatName = searchParams.get("joined");
-  const [open, setOpen] = useState(!!flatName);
+  const groupName = searchParams.get("joined");
+  const [open, setOpen] = useState(!!groupName);
 
   useEffect(() => {
-    if (flatName) setOpen(true);
-  }, [flatName]);
+    if (groupName) setOpen(true);
+  }, [groupName]);
 
   function handleClose() {
     setOpen(false);
-    router.replace("/flats");
+    router.replace("/groups");
   }
 
-  if (!flatName) return null;
+  if (!groupName) return null;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -34,7 +34,7 @@ export function JoinSuccessModal() {
             <h2 className="text-xl font-black tracking-tight">Congratulations! 🎉</h2>
             <p className="text-sm text-muted-foreground">
               You are now a member of{" "}
-              <span className="font-semibold text-foreground">{flatName}</span>
+              <span className="font-semibold text-foreground">{groupName}</span>
             </p>
           </div>
           <Button className="w-full rounded-xl font-bold mt-2" onClick={handleClose}>

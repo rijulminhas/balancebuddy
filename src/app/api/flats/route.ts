@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { flatMembers, flats, users } from "@/db/schema";
+import { groupMembers, groups, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 
 export async function GET() {
@@ -10,29 +10,29 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId, role: flatMembers.role })
-    .from(flatMembers)
+    .select({ groupId: groupMembers.groupId, role: groupMembers.role })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.userId, session.user.id),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) return NextResponse.json({ flatId: null, members: [] });
+  if (!membership) return NextResponse.json({ groupId: null, members: [] });
 
   const members = await db
     .select({
-      userId: flatMembers.userId,
+      userId: groupMembers.userId,
       name: users.name,
-      role: flatMembers.role,
+      role: groupMembers.role,
     })
-    .from(flatMembers)
-    .innerJoin(users, eq(flatMembers.userId, users.id))
+    .from(groupMembers)
+    .innerJoin(users, eq(groupMembers.userId, users.id))
     .where(
-      and(eq(flatMembers.flatId, membership.flatId), eq(flatMembers.status, "active"))
+      and(eq(groupMembers.groupId, membership.groupId), eq(groupMembers.status, "active"))
     );
 
-  return NextResponse.json({ flatId: membership.flatId, members });
+  return NextResponse.json({ groupId: membership.groupId, members });
 }

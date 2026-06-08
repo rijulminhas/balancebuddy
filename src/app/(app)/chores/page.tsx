@@ -1,7 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { chores, flatMembers, users } from "@/db/schema";
+import { chores, groupMembers, users } from "@/db/schema";
 import { eq, and, desc, inArray } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
@@ -35,19 +35,19 @@ export default async function ChoresPage() {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ flatId: flatMembers.flatId })
-    .from(flatMembers)
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
     .where(
       and(
-        eq(flatMembers.userId, session.user.id),
-        eq(flatMembers.status, "active")
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.status, "active")
       )
     )
     .limit(1);
 
-  if (!membership) redirect("/flats");
+  if (!membership) redirect("/groups");
 
-  const { flatId } = membership;
+  const { groupId } = membership;
 
   const choreList = await db
     .select({
@@ -65,7 +65,7 @@ export default async function ChoresPage() {
       createdAt: chores.createdAt,
     })
     .from(chores)
-    .where(eq(chores.flatId, flatId))
+    .where(eq(chores.groupId, groupId))
     .orderBy(desc(chores.createdAt));
 
   // Fetch member names
@@ -174,7 +174,7 @@ export default async function ChoresPage() {
             <CheckSquare className="mb-4 h-10 w-10 text-muted-foreground" />
             <p className="mb-1 text-sm font-medium">No chores yet</p>
             <p className="mb-6 text-xs text-muted-foreground">
-              Add chores to keep your flat organised.
+              Add chores to keep your group organised.
             </p>
             <Button asChild size="sm">
               <Link href="/chores/new">

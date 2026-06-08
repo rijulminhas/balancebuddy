@@ -8,6 +8,27 @@
       "when": 1780661445193,
       "tag": "0000_silly_marrow",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1780661445194,
+      "tag": "0001_flat_member_removed_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780661445195,
+      "tag": "0002_flat_history",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780661445196,
+      "tag": "0003_rename_flat_to_group",
+      "breakpoints": true
     }
   ]
 }
