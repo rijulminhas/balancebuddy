@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import Image from "next/image";
 import {
   ArrowRight,
   Receipt,
@@ -50,8 +51,18 @@ export default function LandingPage() {
       <header className="border-b">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
+            {/* <div className="flex h-7 w-7 items-center justify-center rounded-md bg-primary text-primary-foreground text-xs font-bold">
               BB
+            </div> */}
+            <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl bg-primary">
+              <Image
+                 src="/images/balance.jpg"
+                alt="BalanceBuddy Logo"
+                fill
+                sizes="36px"
+                className="object-contain"
+                priority
+              />
             </div>
             <span className="text-sm">BalanceBuddy</span>
           </div>

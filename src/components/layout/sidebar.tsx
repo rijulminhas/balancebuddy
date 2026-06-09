@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Image from "next/image";
 import {
   LayoutDashboard,
   Home,
@@ -9,6 +10,7 @@ import {
   ArrowLeftRight,
   CheckSquare,
   Bell,
+  AlarmClock,
   Settings,
   LogOut,
   ChevronLeft,
@@ -20,7 +22,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Sheet, SheetContent } from "@/components/ui/sheet";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const navItems = [
   { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
@@ -29,6 +31,7 @@ const navItems = [
   { href: "/expenses",      label: "Expenses",      icon: Receipt },
   { href: "/settlements",   label: "Settlements",   icon: ArrowLeftRight },
   { href: "/chores",        label: "Chores",        icon: CheckSquare },
+  { href: "/reminders",     label: "Reminders",     icon: AlarmClock },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/profile",      label: "Profile Settings",      icon: Settings },
 ];
@@ -43,24 +46,13 @@ function getInitials(name?: string | null) {
 interface NavContentProps {
   collapsed?: boolean;
   onNavClick?: () => void;
+  unreadCount: number;
+  historyCount: number;
 }
 
-function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
+function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }: NavContentProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [historyCount, setHistoryCount] = useState(0);
-
-  useEffect(() => {
-    fetch("/api/notifications/unread-count")
-      .then((r) => r.json())
-      .then((d) => setUnreadCount(d.count ?? 0))
-      .catch(() => {});
-    fetch("/api/groups/history-count")
-      .then((r) => r.json())
-      .then((d) => setHistoryCount(d.count ?? 0))
-      .catch(() => {});
-  }, [pathname]);
 
   return (
     <>
@@ -70,8 +62,18 @@ function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
         collapsed ? "justify-center" : "px-5"
       )}>
         <Link href="/dashboard" onClick={onNavClick} className="flex items-center gap-3">
-          <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
+          {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
             BB
+          </div> */}
+          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+            <Image
+              src="/images/balance.jpg"
+              alt="BalanceBuddy Logo"
+              fill
+              sizes="36px"
+              className="object-contain"
+              priority
+            />
           </div>
           {!collapsed && (
             <span className="text-base font-black tracking-tight text-sidebar-foreground">
@@ -82,12 +84,12 @@ function NavContent({ collapsed = false, onNavClick }: NavContentProps) {
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5">
-        {!collapsed && (
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* {!collapsed && (
           <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40">
             Menu
           </p>
-        )}
+        )} */}
 
         {navItems.map(({ href, label, icon: Icon }) => {
           if (href === "/groups/history" && historyCount === 0) return null;
@@ -195,11 +197,29 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [historyCount, setHistoryCount] = useState(0);
 
   // Close mobile sheet on route change
   useEffect(() => {
     onMobileClose?.();
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Single fetch for both counts — polled every 60s, not on every navigation.
+  useEffect(() => {
+    const load = () => {
+      fetch("/api/sidebar-counts")
+        .then((r) => r.json())
+        .then((d) => {
+          setUnreadCount(d.unread ?? 0);
+          setHistoryCount(d.history ?? 0);
+        })
+        .catch(() => {});
+    };
+    load();
+    const id = setInterval(load, 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   return (
     <TooltipProvider delayDuration={0}>
@@ -211,7 +231,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           collapsed ? "w-16" : "w-60"
         )}
       >
-        <NavContent collapsed={collapsed} />
+        <NavContent collapsed={collapsed} unreadCount={unreadCount} historyCount={historyCount} />
 
         {/* Collapse toggle */}
         <div className="border-t border-sidebar-border px-3 pb-3 pt-1 shrink-0">
@@ -235,7 +255,8 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           showCloseButton={false}
           className="flex flex-col gap-0 p-0 w-72 bg-sidebar border-sidebar-border"
         >
-          <NavContent onNavClick={onMobileClose} />
+          <SheetTitle className="sr-only">Navigation</SheetTitle>
+          <NavContent onNavClick={onMobileClose} unreadCount={unreadCount} historyCount={historyCount} />
         </SheetContent>
       </Sheet>
     </TooltipProvider>

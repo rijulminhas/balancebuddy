@@ -3,7 +3,7 @@ import { notifications, pushSubscriptions } from "@/db/schema";
 import { inArray } from "drizzle-orm";
 import { sendPushToSubscription, type PushPayload } from "./webpush";
 
-type NotificationType =
+export type NotificationType =
   | "expense_added"
   | "expense_updated"
   | "chore_assigned"
@@ -15,11 +15,12 @@ type NotificationType =
   | "member_left"
   | "bill_due"
   | "low_stock"
+  | "reminder"
   | "general";
 
 export async function notifyUsers(
   userIds: string[],
-  groupId: string,
+  groupId: string | null,
   type: NotificationType,
   title: string,
   body: string,

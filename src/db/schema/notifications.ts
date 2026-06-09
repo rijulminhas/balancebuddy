@@ -23,6 +23,7 @@ export const notificationTypeEnum = pgEnum("notification_type", [
   "member_left",
   "bill_due",
   "low_stock",
+  "reminder",
   "general",
 ]);
 

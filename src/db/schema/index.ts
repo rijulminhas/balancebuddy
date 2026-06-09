@@ -8,3 +8,4 @@ export * from "./assets";
 export * from "./notifications";
 export * from "./messages";
 export * from "./audit";
+export * from "./reminders";

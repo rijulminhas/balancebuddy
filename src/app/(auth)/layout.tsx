@@ -1,3 +1,4 @@
+import Image from "next/image";
 export default function AuthLayout({
   children,
 }: {
@@ -13,8 +14,18 @@ export default function AuthLayout({
 
         {/* Logo */}
         <div className="relative flex items-center gap-3 z-10">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-black shadow-lg shadow-primary/40">
+          {/* <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-black shadow-lg shadow-primary/40">
             BB
+          </div> */}
+          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+            <Image
+               src="/images/balance.jpg"
+              alt="BalanceBuddy Logo"
+              fill
+              sizes="40px"
+              className="object-contain"
+              priority
+            />
           </div>
           <span className="text-xl font-black tracking-tight text-sidebar-foreground">
             BalanceBuddy
@@ -24,12 +35,12 @@ export default function AuthLayout({
         {/* Hero text */}
         <div className="relative z-10 space-y-6">
           <h1 className="text-4xl xl:text-5xl font-black leading-tight tracking-tight text-sidebar-foreground">
-            Manage your flat,{" "}
+            Manage your Group Expense,{" "}
             <span className="text-primary">effortlessly.</span>
           </h1>
           <p className="text-base text-sidebar-foreground/60 leading-relaxed max-w-sm">
             Split expenses, track chores, manage inventory — everything your
-            flat needs in one place.
+            group needs in one place.
           </p>
 
           {/* Feature pills */}
@@ -47,7 +58,7 @@ export default function AuthLayout({
 
         {/* Footer quote */}
         <p className="relative z-10 text-xs text-sidebar-foreground/30 font-medium">
-          Built for flatmates who actually want to stay friends.
+          Built for Mates who actually want to stay friends.
         </p>
       </div>
 
@@ -57,8 +68,18 @@ export default function AuthLayout({
           {/* Mobile logo */}
           <div className="flex lg:hidden justify-center mb-2">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/30">
+              {/* <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/30">
                 BB
+              </div> */}
+              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+                <Image
+                   src="/images/balance.jpg"
+                  alt="BalanceBuddy Logo"
+                  fill
+                  sizes="36px"
+                  className="object-contain"
+                  priority
+                />
               </div>
               <span className="text-lg font-black tracking-tight">BalanceBuddy</span>
             </div>
