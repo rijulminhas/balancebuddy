@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -48,7 +47,7 @@ const features = [
 ];
 
 export default async function LandingPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (session) redirect("/dashboard");
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">

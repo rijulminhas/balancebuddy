@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -78,6 +78,25 @@ export function ReminderForm({ open, onClose, onSaved, editing }: ReminderFormPr
       reminderDaysBefore: editing?.reminderDaysBefore ?? 1,
     },
   });
+
+  useEffect(() => {
+    if (open) {
+      form.reset({
+        title: editing?.title ?? "",
+        description: editing?.description ?? "",
+        amount: editing?.amount ?? "",
+        type: (editing?.type as ReminderInput["type"]) ?? "rent",
+        frequency: (editing?.frequency as ReminderInput["frequency"]) ?? "monthly",
+        dayOfMonth: editing?.dayOfMonth ?? 5,
+        monthOfYear: editing?.monthOfYear ?? 1,
+        dayOfWeek: editing?.dayOfWeek ?? 1,
+        specificDate: editing?.specificDate
+          ? new Date(editing.specificDate).toISOString()
+          : undefined,
+        reminderDaysBefore: editing?.reminderDaysBefore ?? 1,
+      });
+    }
+  }, [open, editing]);
 
   const frequency = form.watch("frequency");
 

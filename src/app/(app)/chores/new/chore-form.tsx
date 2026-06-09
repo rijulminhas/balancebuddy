@@ -36,8 +36,8 @@ const schema = z.object({
   assignedToId: z.string().optional(),
   frequency: z.enum(["once", "daily", "weekly", "biweekly", "monthly"]),
   dueDate: z.string().optional(),
-  points: z.coerce.number().int().min(0).max(100).default(0),
-  isRecurring: z.boolean().default(false),
+  points: z.number().int().min(0).max(100),
+  isRecurring: z.boolean(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -195,7 +195,7 @@ export function ChoreForm({ groupId, members }: ChoreFormProps) {
             type="number"
             min={0}
             max={100}
-            {...register("points")}
+            {...register("points", { valueAsNumber: true })}
             placeholder="0"
             className="rounded-xl"
           />

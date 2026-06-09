@@ -1,14 +1,13 @@
 import Image from "next/image";
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 
 export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (session) redirect("/dashboard");
   return (
     <div className="min-h-screen flex">

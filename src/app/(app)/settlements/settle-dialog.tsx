@@ -42,7 +42,7 @@ interface SettleDialogProps {
 
 const schema = z.object({
   toUserId: z.string().min(1, "Select a person"),
-  amount: z.coerce.number().positive("Enter a valid amount"),
+  amount: z.number().positive("Enter a valid amount"),
   method: z.string().optional(),
   reference: z.string().max(255).optional(),
   note: z.string().max(500).optional(),
@@ -129,7 +129,7 @@ export function SettleDialog({
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Amount (₹)</Label>
             <Input
-              {...register("amount")}
+              {...register("amount", { valueAsNumber: true })}
               type="number"
               step="0.01"
               min="0.01"

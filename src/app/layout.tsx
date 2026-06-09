@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
+import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
   },
   description:
     "The Expense Management Operating System — manage expenses, chores, inventory and more for your shared home.",
-  manifest: "/manifest.json",
+  manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#000000",
+  themeColor: "#6366f1",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -44,6 +45,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>
+          <ServiceWorkerRegister />
           {children}
           <Toaster position="top-right" richColors />
         </Providers>

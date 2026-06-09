@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -24,13 +24,28 @@ const loginSchema = z.object({
 type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get("callbackUrl") ?? "/dashboard";
-  const [mounted, setMounted] = useState(false);
+
+  // Strip absolute callbackUrls (e.g. http://localhost:3000/dashboard) that
+  // arrive when NEXTAUTH_URL was previously a different host.
+  const raw = searchParams.get("callbackUrl") ?? "/dashboard";
+  const callbackUrl = raw.startsWith("/") ? raw : "/dashboard";
+
   const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => setMounted(true), []);
+  // After successful sign-in, trigger a full hard navigation instead of
+  // router.push() + router.refresh(). Those two together cause a race:
+  //  1. router.refresh() refetches /login → (auth)/layout sees the new session
+  //     → 307 to /dashboard
+  //  2. router.push() fetches /dashboard using the stale RSC cache (pre-login)
+  //     → (app)/layout sees null session → 307 back to /login
+  //  → infinite 307 loop.
+  // A hard navigation forces a fresh HTTP request with the new cookie, so both
+  // layouts read the session correctly on the very first render.
+  const [dest, setDest] = useState<string | null>(null);
+  useEffect(() => {
+    if (dest) window.location.href = dest;
+  }, [dest]);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -44,10 +59,19 @@ export default function LoginPage() {
         email: values.email,
         password: values.password,
         redirect: false,
+        callbackUrl,
       });
-      if (result?.error) { toast.error("Invalid email or password"); return; }
-      router.push(callbackUrl);
-      router.refresh();
+
+      if (!result) {
+        toast.error("Something went wrong. Please try again.");
+        return;
+      }
+      if (result.error) {
+        toast.error("Invalid email or password");
+        return;
+      }
+
+      setDest(callbackUrl);
     } catch {
       toast.error("Something went wrong. Please try again.");
     } finally {
@@ -63,7 +87,7 @@ export default function LoginPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} method="POST" className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
           <FormField
             control={form.control}
             name="email"
@@ -99,7 +123,7 @@ export default function LoginPage() {
             )}
           />
 
-          <Button type="submit" className="w-full h-11 rounded-xl font-bold text-base" disabled={!mounted || isLoading}>
+          <Button type="submit" disabled={isLoading} className="w-full h-11 rounded-xl font-bold text-base">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             Sign In
           </Button>

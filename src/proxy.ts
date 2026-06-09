@@ -1,12 +1,24 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PUBLIC_PATHS = ["/", "/login", "/register", "/forgot-password", "/verify-email", "/invite"];
+const PUBLIC_PATHS = [
+  "/",
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/verify-email",
+  "/invite",
+  // PWA assets — must always be accessible, even when unauthenticated
+  "/manifest.webmanifest",
+  "/sw.js",
+  "/offline.html",
+];
 const AUTH_ONLY_PATHS = ["/login", "/register", "/forgot-password"];
 
-// NextAuth v4 JWT cookie name (dev = plain, prod = __Secure- prefix)
+// NextAuth uses __Secure- prefix whenever NEXTAUTH_URL starts with https://,
+// regardless of NODE_ENV. Using ngrok (HTTPS in dev) requires the secure name.
 const SESSION_COOKIE =
-  process.env.NODE_ENV === "production"
+  process.env.NEXTAUTH_URL?.startsWith("https://") || !!process.env.VERCEL
     ? "__Secure-next-auth.session-token"
     : "next-auth.session-token";
 

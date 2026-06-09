@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { groupMembers, groups, expenses, expenseParticipants, chores, settlements } from "@/db/schema";
 import { eq, and, count, sum } from "drizzle-orm";
@@ -85,7 +84,7 @@ function fmt(n: number) {
 }
 
 export default async function DashboardPage() {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const data = await getDashboardData(session.user.id);

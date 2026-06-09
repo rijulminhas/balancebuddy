@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { redirect } from "next/navigation";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { SessionProvider } from "@/components/providers/session-provider";
 import { AppShell } from "@/components/layout/app-shell";
 import { PushSubscriptionManager } from "@/components/shared/push-subscription";
@@ -10,7 +9,7 @@ export default async function AppLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   // Pass the server session to SessionProvider so client components

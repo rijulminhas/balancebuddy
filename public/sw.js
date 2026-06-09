@@ -1,6 +1,9 @@
 // BalanceBuddy Service Worker — v2
 const CACHE_NAME = "balancebuddy-v2";
-const STATIC_ASSETS = ["/", "/dashboard", "/offline.html"];
+// Only cache static shell resources — never authenticated routes.
+// Pre-caching /dashboard when unauthenticated would cause a server-side
+// redirect to /login?callbackUrl=%2Fdashboard, flooding the terminal log.
+const STATIC_ASSETS = ["/offline.html"];
 
 // ── Install ──────────────────────────────────────────────────────────────────
 self.addEventListener("install", (event) => {
