@@ -21,13 +21,14 @@ import { cn } from "@/lib/utils";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
+import { useSidebarCounts } from "@/store/sidebar-counts";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const navItems = [
   { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
   { href: "/groups",         label: "My Group",       icon: Home },
-  { href: "/groups/history", label: "Room History",   icon: History },
+  { href: "/history", label: "Room History",   icon: History },
   { href: "/expenses",      label: "Expenses",      icon: Receipt },
   { href: "/settlements",   label: "Settlements",   icon: ArrowLeftRight },
   { href: "/chores",        label: "Chores",        icon: CheckSquare },
@@ -197,8 +198,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [historyCount, setHistoryCount] = useState(0);
+  const { unreadCount, historyCount, setCounts } = useSidebarCounts();
 
   // Close mobile sheet on route change
   useEffect(() => {
@@ -210,16 +210,13 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
     const load = () => {
       fetch("/api/sidebar-counts")
         .then((r) => r.json())
-        .then((d) => {
-          setUnreadCount(d.unread ?? 0);
-          setHistoryCount(d.history ?? 0);
-        })
+        .then((d) => setCounts(d.unread ?? 0, d.history ?? 0))
         .catch(() => {});
     };
     load();
     const id = setInterval(load, 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <TooltipProvider delayDuration={0}>
