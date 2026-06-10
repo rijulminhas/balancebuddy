@@ -42,7 +42,8 @@ export async function computeGroupBalances(groupId: string): Promise<{
   optimizedTransactions: OptimizedTransaction[];
   nameMap: Map<string, string>;
 }> {
-  const unpaidShares = await db
+  // Fetch all expense shares (both paid and unpaid) to compute gross debts
+  const allShares = await db
     .select({
       participantUserId: expenseParticipants.userId,
       shareAmount: expenseParticipants.shareAmount,
@@ -50,17 +51,61 @@ export async function computeGroupBalances(groupId: string): Promise<{
     })
     .from(expenseParticipants)
     .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
-    .where(
-      and(eq(expenses.groupId, groupId), eq(expenseParticipants.isPaid, false))
-    );
+    .where(eq(expenses.groupId, groupId));
 
-  const rawDebts: RawDebt[] = unpaidShares
-    .filter((r) => r.participantUserId !== r.expensePaidById)
-    .map((r) => ({
-      fromUserId: r.participantUserId,
-      toUserId: r.expensePaidById,
-      amount: Number(r.shareAmount),
-    }));
+  // Aggregate gross debt per (from, to) pair from all expense shares
+  const grossDebtMap = new Map<string, number>();
+  for (const r of allShares) {
+    if (r.participantUserId === r.expensePaidById) continue;
+    const key = `${r.participantUserId}::${r.expensePaidById}`;
+    grossDebtMap.set(key, (grossDebtMap.get(key) ?? 0) + Number(r.shareAmount));
+  }
+
+  // Fetch all completed settlements to subtract from gross debts
+  const completedSettlements = await db
+    .select({
+      fromUserId: settlements.fromUserId,
+      toUserId: settlements.toUserId,
+      amount: settlements.amount,
+    })
+    .from(settlements)
+    .where(and(eq(settlements.groupId, groupId), eq(settlements.status, "completed")));
+
+  // Aggregate total paid per (from, to) pair
+  const paidMap = new Map<string, number>();
+  for (const s of completedSettlements) {
+    const key = `${s.fromUserId}::${s.toUserId}`;
+    paidMap.set(key, (paidMap.get(key) ?? 0) + Number(s.amount));
+  }
+
+  // Net debt = gross debt - payments made; overpayments flip the direction
+  const netDebtMap = new Map<string, number>();
+  for (const [key, gross] of grossDebtMap) {
+    const [from, to] = key.split("::");
+    const paid = paidMap.get(key) ?? 0;
+    const net = gross - paid;
+    if (net > 0.01) {
+      netDebtMap.set(key, net);
+    } else if (net < -0.01) {
+      // Overpayment: creditor now owes the payer the excess
+      const reverseKey = `${to}::${from}`;
+      netDebtMap.set(reverseKey, (netDebtMap.get(reverseKey) ?? 0) + Math.abs(net));
+    }
+  }
+
+  // Also handle settlements that have no corresponding expense debt (pure credit payments)
+  for (const [key, paid] of paidMap) {
+    if (!grossDebtMap.has(key)) {
+      const [from, to] = key.split("::");
+      const reverseKey = `${to}::${from}`;
+      netDebtMap.set(reverseKey, (netDebtMap.get(reverseKey) ?? 0) + paid);
+    }
+  }
+
+  const rawDebts: RawDebt[] = Array.from(netDebtMap.entries()).map(([key, amount]) => {
+    const [fromUserId, toUserId] = key.split("::");
+    return { fromUserId, toUserId, amount };
+  });
 
   const involvedIds = [
     ...new Set([

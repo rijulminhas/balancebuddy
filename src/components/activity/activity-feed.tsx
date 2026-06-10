@@ -2,9 +2,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import { getGroupActivity } from "@/actions/activity";
+import type { ActivityEntry } from "@/actions/activity";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 import {
   Receipt,
   ArrowLeftRight,
@@ -22,7 +24,7 @@ import {
 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
-// ── Human-readable config per action ────────────────────────────────────────
+const PAGE_SIZE = 20;
 
 type ActionConfig = {
   label: (actor: string, after: Record<string, unknown> | null) => string;
@@ -170,8 +172,8 @@ function getInitials(name: string | null) {
   return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 }
 
-function groupByDate(entries: Awaited<ReturnType<typeof getGroupActivity>>) {
-  const groups: Record<string, typeof entries> = {};
+function groupByDate(entries: ActivityEntry[]) {
+  const groups: Record<string, ActivityEntry[]> = {};
   for (const e of entries) {
     const key = new Date(e.createdAt).toDateString();
     if (!groups[key]) groups[key] = [];
@@ -190,17 +192,18 @@ function dateLabel(dateStr: string) {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" });
 }
 
-export async function ActivityFeed() {
+export async function ActivityFeed({ page = 1 }: { page?: number }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
-  const entries = await getGroupActivity(session.user.id, 80);
+  const offset = (page - 1) * PAGE_SIZE;
+  const { entries, total } = await getGroupActivity(session.user.id, PAGE_SIZE, offset);
+  const totalPages = Math.ceil(total / PAGE_SIZE);
   const grouped = groupByDate(entries);
   const dateKeys = Object.keys(grouped);
 
   return (
     <div className="space-y-8">
-      {/* Header */}
       <div className="flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -216,13 +219,12 @@ export async function ActivityFeed() {
         </div>
         <div className="hidden sm:flex items-center gap-2 px-4 py-2 rounded-2xl bg-muted/60 border border-border/40">
           <span className="text-xs font-semibold text-muted-foreground">
-            {entries.length} event{entries.length !== 1 ? "s" : ""}
+            {total} event{total !== 1 ? "s" : ""}
           </span>
         </div>
       </div>
 
-      {/* Empty state */}
-      {entries.length === 0 && (
+      {total === 0 && (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-20 text-center">
             <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-muted">
@@ -236,10 +238,8 @@ export async function ActivityFeed() {
         </Card>
       )}
 
-      {/* Timeline grouped by date */}
       {dateKeys.map((dateKey) => (
         <div key={dateKey} className="space-y-1">
-          {/* Date separator */}
           <div className="flex items-center gap-3 mb-3">
             <span className="text-xs font-bold uppercase tracking-widest text-muted-foreground">
               {dateLabel(dateKey)}
@@ -250,7 +250,6 @@ export async function ActivityFeed() {
             </span>
           </div>
 
-          {/* Events card */}
           <Card className="border-border/60 overflow-hidden">
             <CardContent className="p-0">
               {grouped[dateKey].map((entry, idx) => {
@@ -274,12 +273,10 @@ export async function ActivityFeed() {
                       !isLast ? "border-b border-border/40" : ""
                     }`}
                   >
-                    {/* Colored dot */}
                     <div className="mt-2 shrink-0">
                       <span className={`block h-2 w-2 rounded-full ${config.dot}`} />
                     </div>
 
-                    {/* Avatar */}
                     <Avatar className="h-9 w-9 shrink-0 ring-2 ring-border/40">
                       <AvatarImage src={entry.userImage ?? undefined} alt={entry.userName ?? "User avatar"} />
                       <AvatarFallback className="text-[11px] font-bold bg-muted text-muted-foreground">
@@ -287,7 +284,6 @@ export async function ActivityFeed() {
                       </AvatarFallback>
                     </Avatar>
 
-                    {/* Text */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground leading-snug">
                         {label}
@@ -298,7 +294,6 @@ export async function ActivityFeed() {
                       </div>
                     </div>
 
-                    {/* Badge */}
                     <Badge
                       variant={config.badgeVariant}
                       className="shrink-0 text-[10px] font-bold capitalize hidden sm:inline-flex"
@@ -312,6 +307,8 @@ export async function ActivityFeed() {
           </Card>
         </div>
       ))}
+
+      <PaginationBar page={page} totalPages={totalPages} />
     </div>
   );
 }

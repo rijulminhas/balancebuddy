@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { chores, groupMembers, users } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, ne, count } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -14,6 +14,9 @@ import { ChoreActions } from "./chore-actions";
 import { STATUS_CONFIG, FREQUENCY_LABEL } from "./constants";
 import { isOverdue } from "./utils";
 import type { ChoreItem } from "./types";
+import { PaginationBar } from "@/components/ui/pagination-bar";
+
+const COMPLETED_PAGE_SIZE = 20;
 
 type ChoreWithName = ChoreItem;
 
@@ -98,7 +101,7 @@ function ChoreSection({ title, items, nameMap, currentUserId, muted }: ChoreSect
   );
 }
 
-export async function ChoreList() {
+export async function ChoreList({ completedPage = 1 }: { completedPage?: number }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
@@ -111,30 +114,52 @@ export async function ChoreList() {
   if (!membership) redirect("/groups");
 
   const { groupId } = membership;
+  const completedOffset = (completedPage - 1) * COMPLETED_PAGE_SIZE;
 
-  const choreList = await db
-    .select({
-      id: chores.id,
-      title: chores.title,
-      description: chores.description,
-      status: chores.status,
-      frequency: chores.frequency,
-      dueDate: chores.dueDate,
-      completedAt: chores.completedAt,
-      points: chores.points,
-      isRecurring: chores.isRecurring,
-      assignedToId: chores.assignedToId,
-      createdById: chores.createdById,
-      createdAt: chores.createdAt,
-    })
-    .from(chores)
-    .where(eq(chores.groupId, groupId))
-    .orderBy(desc(chores.createdAt));
+  const selectFields = {
+    id: chores.id,
+    title: chores.title,
+    description: chores.description,
+    status: chores.status,
+    frequency: chores.frequency,
+    dueDate: chores.dueDate,
+    completedAt: chores.completedAt,
+    points: chores.points,
+    isRecurring: chores.isRecurring,
+    assignedToId: chores.assignedToId,
+    createdById: chores.createdById,
+    createdAt: chores.createdAt,
+  };
+
+  const [activeChores, completedChores, [{ completedTotal }]] = await Promise.all([
+    db
+      .select(selectFields)
+      .from(chores)
+      .where(and(eq(chores.groupId, groupId), ne(chores.status, "completed")))
+      .orderBy(desc(chores.createdAt)),
+
+    db
+      .select(selectFields)
+      .from(chores)
+      .where(and(eq(chores.groupId, groupId), eq(chores.status, "completed")))
+      .orderBy(desc(chores.completedAt))
+      .limit(COMPLETED_PAGE_SIZE)
+      .offset(completedOffset),
+
+    db
+      .select({ completedTotal: count() })
+      .from(chores)
+      .where(and(eq(chores.groupId, groupId), eq(chores.status, "completed"))),
+  ]);
+
+  const completedTotalPages = Math.ceil(completedTotal / COMPLETED_PAGE_SIZE);
 
   const involvedIds = [
     ...new Set([
-      ...(choreList.map((c) => c.assignedToId).filter(Boolean) as string[]),
-      ...choreList.map((c) => c.createdById),
+      ...(activeChores.map((c) => c.assignedToId).filter(Boolean) as string[]),
+      ...activeChores.map((c) => c.createdById),
+      ...(completedChores.map((c) => c.assignedToId).filter(Boolean) as string[]),
+      ...completedChores.map((c) => c.createdById),
     ]),
   ];
 
@@ -145,12 +170,11 @@ export async function ChoreList() {
 
   const nameMap = new Map(memberRows.map((u) => [u.id, u.name ?? "Unknown"]));
 
-  const pending = choreList.filter((c) => c.status === "pending");
-  const inProgress = choreList.filter((c) => c.status === "in_progress");
-  const completed = choreList.filter((c) => c.status === "completed");
-  const mine = choreList.filter(
-    (c) => c.assignedToId === session.user.id && c.status !== "completed"
-  );
+  const pending = activeChores.filter((c) => c.status === "pending");
+  const inProgress = activeChores.filter((c) => c.status === "in_progress");
+  const mine = activeChores.filter((c) => c.assignedToId === session.user.id);
+
+  const totalActive = activeChores.length;
 
   return (
     <div className="space-y-6">
@@ -158,7 +182,7 @@ export async function ChoreList() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Chores</h1>
           <p className="text-xs text-muted-foreground mt-0.5">
-            {pending.length + inProgress.length} pending · {completed.length} completed
+            {totalActive} pending · {completedTotal} completed
           </p>
         </div>
         <Button asChild size="sm">
@@ -216,7 +240,7 @@ export async function ChoreList() {
         </Card>
       )}
 
-      {choreList.length === 0 ? (
+      {totalActive === 0 && completedTotal === 0 ? (
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <CheckSquare className="mb-4 h-10 w-10 text-muted-foreground" />
@@ -240,8 +264,58 @@ export async function ChoreList() {
           {pending.length > 0 && (
             <ChoreSection title="Pending" items={pending} nameMap={nameMap} currentUserId={session.user.id} />
           )}
-          {completed.length > 0 && (
-            <ChoreSection title="Completed" items={completed} nameMap={nameMap} currentUserId={session.user.id} muted />
+          {completedTotal > 0 && (
+            <Card className="border-border/60 opacity-75">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  Completed · {completedTotal}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {completedChores.map((chore) => {
+                  const isAssignedToMe = chore.assignedToId === session.user.id;
+                  return (
+                    <div
+                      key={chore.id}
+                      className="flex items-center justify-between rounded-xl bg-muted/40 px-4 py-3 gap-3"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-medium truncate line-through text-muted-foreground">
+                            {chore.title}
+                          </p>
+                          {isAssignedToMe && (
+                            <Badge variant="warning" className="text-xs shrink-0">Yours</Badge>
+                          )}
+                          {chore.isRecurring && (
+                            <RotateCcw className="h-3 w-3 text-muted-foreground shrink-0" />
+                          )}
+                        </div>
+                        <div className="flex items-center gap-3 mt-0.5 flex-wrap">
+                          {chore.assignedToId && (
+                            <p className="text-xs text-muted-foreground">
+                              Assigned to{" "}
+                              {isAssignedToMe ? "you" : nameMap.get(chore.assignedToId) ?? "Unknown"}
+                            </p>
+                          )}
+                          {chore.completedAt && (
+                            <p className="text-xs text-muted-foreground">
+                              Completed {format(new Date(chore.completedAt), "dd MMM")}
+                            </p>
+                          )}
+                          {chore.frequency !== "once" && (
+                            <Badge variant="outline" className="text-xs py-0 h-4">
+                              {FREQUENCY_LABEL[chore.frequency]}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                <PaginationBar page={completedPage} totalPages={completedTotalPages} />
+              </CardContent>
+            </Card>
           )}
         </div>
       )}

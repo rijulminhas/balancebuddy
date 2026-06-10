@@ -2,7 +2,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { groupMembers, settlements, users } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +26,11 @@ import { format } from "date-fns";
 import { computeGroupBalances } from "@/actions/settlements";
 import { SettleDialog } from "./settle-dialog";
 import { fmt } from "./utils";
+import { PaginationBar } from "@/components/ui/pagination-bar";
 
-export async function SettlementsList() {
+const HISTORY_PAGE_SIZE = 20;
+
+export async function SettlementsList({ historyPage = 1 }: { historyPage?: number }) {
   const session = await getServerSession(authOptions);
   if (!session) redirect("/login");
 
@@ -40,8 +43,9 @@ export async function SettlementsList() {
   if (!membership) redirect("/groups");
 
   const { groupId } = membership;
+  const historyOffset = (historyPage - 1) * HISTORY_PAGE_SIZE;
 
-  const [{ memberBalances, optimizedTransactions }, allMembers, recentSettlements] =
+  const [{ memberBalances, optimizedTransactions }, allMembers, recentSettlements, [{ historyTotal }]] =
     await Promise.all([
       computeGroupBalances(groupId),
 
@@ -65,12 +69,24 @@ export async function SettlementsList() {
         .from(settlements)
         .where(eq(settlements.groupId, groupId))
         .orderBy(desc(settlements.createdAt))
-        .limit(30),
+        .limit(HISTORY_PAGE_SIZE)
+        .offset(historyOffset),
+
+      db
+        .select({ historyTotal: count() })
+        .from(settlements)
+        .where(eq(settlements.groupId, groupId)),
     ]);
+
+  const historyTotalPages = Math.ceil(historyTotal / HISTORY_PAGE_SIZE);
 
   const nameMap = new Map(allMembers.map((m) => [m.id, m.name ?? "Unknown"]));
   const myBalance = memberBalances.find((b) => b.userId === session.user.id);
   const myNetBalance = myBalance?.netBalance ?? 0;
+
+  // Check for overpayment credit (I paid more settlements than I owed)
+  // netBalance > 0 means others owe me; < 0 means I owe; credit shown when I overpaid
+  // The optimized transactions already reflect the correct net after settlements
 
   const myTransactions = optimizedTransactions.filter(
     (t) => t.fromUserId === session.user.id || t.toUserId === session.user.id
@@ -92,12 +108,12 @@ export async function SettlementsList() {
             Smart debt optimization — minimize transactions
           </p>
         </div>
-        <SettleDialog groupId={groupId} members={membersForDialog}>
+        {/* <SettleDialog groupId={groupId} members={membersForDialog}>
           <Button size="sm">
             <Plus className="mr-2 h-4 w-4" />
             Record Payment
           </Button>
-        </SettleDialog>
+        </SettleDialog> */}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -265,9 +281,14 @@ export async function SettlementsList() {
 
       <Card className="border-border/60">
         <CardHeader className="pb-3">
-          <CardTitle className="text-base font-bold">Payment history</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-bold">Payment history</CardTitle>
+            {historyTotal > 0 && (
+              <span className="text-xs text-muted-foreground">{historyTotal} total</span>
+            )}
+          </div>
         </CardHeader>
-        {recentSettlements.length === 0 ? (
+        {historyTotal === 0 ? (
           <CardContent>
             <div className="flex flex-col items-center justify-center py-10 text-center">
               <ArrowLeftRight className="mb-3 h-8 w-8 text-muted-foreground/40" />
@@ -314,7 +335,7 @@ export async function SettlementsList() {
                         <TableCell className="text-xs text-muted-foreground">
                           {format(new Date(s.settledAt ?? s.createdAt), "dd MMM yyyy")}
                         </TableCell>
-                        <TableCell className="text-xs text-muted-foreground max-w-[120px] truncate">
+                        <TableCell className="text-xs text-muted-foreground max-w-30 truncate">
                           {s.note ?? "—"}
                         </TableCell>
                       </TableRow>
@@ -322,6 +343,9 @@ export async function SettlementsList() {
                   })}
                 </TableBody>
               </Table>
+            </div>
+            <div className="px-6 pb-4">
+              <PaginationBar page={historyPage} totalPages={historyTotalPages} />
             </div>
           </CardContent>
         )}

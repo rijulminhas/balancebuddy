@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { auditLogs, groupMembers, users } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, count } from "drizzle-orm";
 
 export interface ActivityEntry {
   id: string;
@@ -19,34 +19,43 @@ export interface ActivityEntry {
 
 export async function getGroupActivity(
   userId: string,
-  limit = 50
-): Promise<ActivityEntry[]> {
+  limit = 20,
+  offset = 0
+): Promise<{ entries: ActivityEntry[]; total: number }> {
   const [membership] = await db
     .select({ groupId: groupMembers.groupId })
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")))
     .limit(1);
 
-  if (!membership) return [];
+  if (!membership) return { entries: [], total: 0 };
 
-  const rows = await db
-    .select({
-      id: auditLogs.id,
-      action: auditLogs.action,
-      resource: auditLogs.resource,
-      resourceId: auditLogs.resourceId,
-      before: auditLogs.before,
-      after: auditLogs.after,
-      createdAt: auditLogs.createdAt,
-      userId: auditLogs.userId,
-      userName: users.name,
-      userImage: users.image,
-    })
-    .from(auditLogs)
-    .leftJoin(users, eq(auditLogs.userId, users.id))
-    .where(eq(auditLogs.groupId, membership.groupId))
-    .orderBy(desc(auditLogs.createdAt))
-    .limit(limit);
+  const [rows, [{ total }]] = await Promise.all([
+    db
+      .select({
+        id: auditLogs.id,
+        action: auditLogs.action,
+        resource: auditLogs.resource,
+        resourceId: auditLogs.resourceId,
+        before: auditLogs.before,
+        after: auditLogs.after,
+        createdAt: auditLogs.createdAt,
+        userId: auditLogs.userId,
+        userName: users.name,
+        userImage: users.image,
+      })
+      .from(auditLogs)
+      .leftJoin(users, eq(auditLogs.userId, users.id))
+      .where(eq(auditLogs.groupId, membership.groupId))
+      .orderBy(desc(auditLogs.createdAt))
+      .limit(limit)
+      .offset(offset),
 
-  return rows as ActivityEntry[];
+    db
+      .select({ total: count() })
+      .from(auditLogs)
+      .where(eq(auditLogs.groupId, membership.groupId)),
+  ]);
+
+  return { entries: rows as ActivityEntry[], total };
 }

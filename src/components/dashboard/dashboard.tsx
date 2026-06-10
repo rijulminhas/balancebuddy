@@ -31,7 +31,7 @@ async function getDashboardData(userId: string) {
 
   const { groupId } = membership;
 
-  const [[groupInfo], [memberCount], [expenseStats], pendingChores, pendingSettlements, myOwed] =
+  const [[groupInfo], [memberCount], [expenseStats], pendingChores, pendingSettlements, myOwed, mySettlementsPaid] =
     await Promise.all([
       db.select({ name: groups.name }).from(groups).where(eq(groups.id, groupId)).limit(1),
 
@@ -52,17 +52,28 @@ async function getDashboardData(userId: string) {
         .where(and(eq(settlements.groupId, groupId), eq(settlements.status, "pending"), eq(settlements.toUserId, userId)))
         .limit(5),
 
-      db.select({ shareAmount: expenseParticipants.shareAmount })
+      db.select({ shareAmount: expenseParticipants.shareAmount, paidById: expenses.paidById })
         .from(expenseParticipants)
         .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
         .where(and(
           eq(expenseParticipants.userId, userId),
-          eq(expenseParticipants.isPaid, false),
           eq(expenses.groupId, groupId),
+        )),
+
+      db.select({ total: sum(settlements.amount) })
+        .from(settlements)
+        .where(and(
+          eq(settlements.groupId, groupId),
+          eq(settlements.fromUserId, userId),
+          eq(settlements.status, "completed"),
         )),
     ]);
 
-  const iOwe = myOwed.reduce((s, r) => s + Number(r.shareAmount), 0);
+  const grossIOwe = myOwed
+    .filter((r) => r.paidById !== userId)
+    .reduce((s, r) => s + Number(r.shareAmount), 0);
+  const totalIPaid = Number(mySettlementsPaid[0]?.total ?? 0);
+  const iOwe = Math.max(0, grossIOwe - totalIPaid);
 
   return {
     group: groupInfo,
