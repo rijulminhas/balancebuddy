@@ -21,6 +21,7 @@ import { GroupActions } from "./group-actions";
 import { MemberActions } from "./member-actions";
 import { CopyInviteButton, CopyInviteCodeButton } from "./copy-invite-button";
 import { JoinSuccessModal } from "./join-success-modal";
+import { InviteErrorModal } from "./invite-error-modal";
 import { SendInviteForm } from "./send-invite-form";
 import { getInitials } from "./utils";
 import { ROLE_BADGE } from "./constants";
@@ -38,6 +39,7 @@ export async function GroupsPage() {
   if (!membership) {
     return (
       <div className="space-y-6">
+        <InviteErrorModal />
         <h1 className="text-2xl font-semibold tracking-tight">My Group</h1>
         <Card className="border-dashed">
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
@@ -90,6 +92,7 @@ export async function GroupsPage() {
   return (
     <div className="space-y-6">
       <JoinSuccessModal />
+      <InviteErrorModal />
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold tracking-tight">My Group</h1>
         <GroupActions
@@ -150,7 +153,7 @@ export async function GroupsPage() {
                 <div className="flex items-center justify-between px-6 py-3">
                   <div className="flex items-center gap-3">
                     <Avatar className="h-8 w-8">
-                      <AvatarImage src={`/api/users/${member.userId}/avatar`} />
+                      <AvatarImage src={`/api/users/${member.userId}/avatar`} alt={member.name} />
                       <AvatarFallback className="text-xs">
                         {getInitials(member.name)}
                       </AvatarFallback>

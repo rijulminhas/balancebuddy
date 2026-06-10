@@ -281,7 +281,7 @@ export async function ActivityFeed() {
 
                     {/* Avatar */}
                     <Avatar className="h-9 w-9 shrink-0 ring-2 ring-border/40">
-                      <AvatarImage src={entry.userImage ?? undefined} />
+                      <AvatarImage src={entry.userImage ?? undefined} alt={entry.userName ?? "User avatar"} />
                       <AvatarFallback className="text-[11px] font-bold bg-muted text-muted-foreground">
                         {getInitials(entry.userName)}
                       </AvatarFallback>

@@ -29,7 +29,14 @@ export function EnablePushButton() {
     if ("Notification" in window) setPermission(Notification.permission);
   }, []);
 
-  if (!("Notification" in window) || !("PushManager" in window) || !vapidPublicKey) {
+  if (permission === null) return null;
+
+  if (
+    typeof window === "undefined" ||
+    !("Notification" in window) ||
+    !("PushManager" in window) ||
+    !vapidPublicKey
+  ) {
     return null;
   }
 

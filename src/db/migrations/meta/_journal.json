@@ -29,6 +29,13 @@
       "when": 1780661445196,
       "tag": "0003_rename_flat_to_group",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1749600000000,
+      "tag": "0004_shopping_tables",
+      "breakpoints": true
     }
   ]
 }

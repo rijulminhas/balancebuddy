@@ -17,6 +17,7 @@ import {
   ChevronRight,
   History,
   Activity,
+  ShoppingCart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/chores", label: "Chores", icon: CheckSquare },
   { href: "/activity", label: "Activity Log", icon: Activity },
   { href: "/reminders", label: "Reminders", icon: AlarmClock },
+  { href: "/shopping", label: "Shopping", icon: ShoppingCart },
   { href: "/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/profile", label: "Profile Settings", icon: Settings },
 ];
@@ -108,7 +110,7 @@ function NavContent({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-0.5 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {/* {!collapsed && (
           <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-widest text-sidebar-foreground/40">
             Menu
@@ -172,7 +174,7 @@ function NavContent({
             )}
           >
             <Avatar className="h-8 w-8 shrink-0 ring-2 ring-primary/20">
-              <AvatarImage src={session.user.image ?? undefined} />
+              <AvatarImage src={session.user.image ?? undefined} alt={session.user.name ?? "User avatar"} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
                 {getInitials(session.user.name)}
               </AvatarFallback>
@@ -210,7 +212,7 @@ function NavContent({
         ) : (
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-semibold text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
           >
             <LogOut className="h-4 w-4 shrink-0" />
             <span>Sign Out</span>

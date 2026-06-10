@@ -110,7 +110,7 @@ export function TransferOwnershipModal({
                   ].join(" ")}
                 >
                   <Avatar className="h-8 w-8 shrink-0">
-                    <AvatarImage src={member.avatarUrl} />
+                    <AvatarImage src={member.avatarUrl} alt={member.name} />
                     <AvatarFallback className="text-xs">
                       {getInitials(member.name)}
                     </AvatarFallback>
