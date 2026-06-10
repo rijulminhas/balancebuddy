@@ -8,6 +8,7 @@ import {
   expenseParticipants,
   groupMembers,
   users,
+  auditLogs,
 } from "@/db/schema";
 import { eq, and, asc, inArray, count } from "drizzle-orm";
 import { z } from "zod";
@@ -197,6 +198,15 @@ export async function recordSettlement(
     method: method ?? null,
     reference: reference ?? null,
     note: note ?? null,
+  });
+
+  await db.insert(auditLogs).values({
+    groupId,
+    userId,
+    action: "settlement.created",
+    resource: "settlement",
+    resourceId: settlement.id,
+    after: { amount, toUserId },
   });
 
   const unpaidShares = await db

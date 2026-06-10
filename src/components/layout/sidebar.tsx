@@ -16,9 +16,15 @@ import {
   ChevronLeft,
   ChevronRight,
   History,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useEffect, useState } from "react";
 import { signOut, useSession } from "next-auth/react";
 import { useSidebarCounts } from "@/store/sidebar-counts";
@@ -26,20 +32,26 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const navItems = [
-  { href: "/dashboard",     label: "Dashboard",    icon: LayoutDashboard },
-  { href: "/groups",         label: "My Group",       icon: Home },
-  { href: "/history", label: "Room History",   icon: History },
-  { href: "/expenses",      label: "Expenses",      icon: Receipt },
-  { href: "/settlements",   label: "Settlements",   icon: ArrowLeftRight },
-  { href: "/chores",        label: "Chores",        icon: CheckSquare },
-  { href: "/reminders",     label: "Reminders",     icon: AlarmClock },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/groups", label: "My Group", icon: Home },
+  { href: "/expenses", label: "Expenses", icon: Receipt },
+  { href: "/history", label: "Room History", icon: History },
+  { href: "/settlements", label: "Settlements", icon: ArrowLeftRight },
+  { href: "/chores", label: "Chores", icon: CheckSquare },
+  { href: "/activity", label: "Activity Log", icon: Activity },
+  { href: "/reminders", label: "Reminders", icon: AlarmClock },
   { href: "/notifications", label: "Notifications", icon: Bell },
-  { href: "/settings/profile",      label: "Profile Settings",      icon: Settings },
+  { href: "/settings/profile", label: "Profile Settings", icon: Settings },
 ];
 
 function getInitials(name?: string | null) {
   if (!name) return "?";
-  return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 }
 
 // ── Shared nav content rendered in both desktop sidebar and mobile Sheet ──
@@ -51,18 +63,29 @@ interface NavContentProps {
   historyCount: number;
 }
 
-function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }: NavContentProps) {
+function NavContent({
+  collapsed = false,
+  onNavClick,
+  unreadCount,
+  historyCount,
+}: NavContentProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
   return (
     <>
       {/* Logo */}
-      <div className={cn(
-        "flex h-16 items-center border-b border-sidebar-border shrink-0",
-        collapsed ? "justify-center" : "px-5"
-      )}>
-        <Link href="/dashboard" onClick={onNavClick} className="flex items-center gap-3">
+      <div
+        className={cn(
+          "flex h-16 items-center border-b border-sidebar-border shrink-0",
+          collapsed ? "justify-center" : "px-5",
+        )}
+      >
+        <Link
+          href="/dashboard"
+          onClick={onNavClick}
+          className="flex items-center gap-3"
+        >
           {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
             BB
           </div> */}
@@ -95,9 +118,10 @@ function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }
         {navItems.map(({ href, label, icon: Icon }) => {
           if (href === "/groups/history" && historyCount === 0) return null;
 
-          const active = href === "/groups"
-            ? pathname === "/groups"
-            : pathname === href || pathname.startsWith(href + "/");
+          const active =
+            href === "/groups"
+              ? pathname === "/groups"
+              : pathname === href || pathname.startsWith(href + "/");
 
           const item = (
             <Link
@@ -109,10 +133,12 @@ function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }
                 collapsed && "justify-center",
                 active
                   ? "bg-primary text-primary-foreground shadow-sm shadow-primary/30"
-                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+                  : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               )}
             >
-              <Icon className={cn("shrink-0", collapsed ? "h-5 w-5" : "h-4 w-4")} />
+              <Icon
+                className={cn("shrink-0", collapsed ? "h-5 w-5" : "h-4 w-4")}
+              />
               {!collapsed && <span className="flex-1">{label}</span>}
               {href === "/notifications" && unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-sidebar">
@@ -126,7 +152,9 @@ function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }
             return (
               <Tooltip key={href}>
                 <TooltipTrigger asChild>{item}</TooltipTrigger>
-                <TooltipContent side="right" className="font-semibold">{label}</TooltipContent>
+                <TooltipContent side="right" className="font-semibold">
+                  {label}
+                </TooltipContent>
               </Tooltip>
             );
           }
@@ -137,10 +165,12 @@ function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }
       {/* Bottom: user + sign out */}
       <div className="border-t border-sidebar-border p-3 space-y-1 shrink-0">
         {session?.user && (
-          <div className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2 bg-sidebar-accent/50",
-            collapsed && "justify-center px-0 bg-transparent"
-          )}>
+          <div
+            className={cn(
+              "flex items-center gap-3 rounded-xl px-3 py-2 bg-sidebar-accent/50",
+              collapsed && "justify-center px-0 bg-transparent",
+            )}
+          >
             <Avatar className="h-8 w-8 shrink-0 ring-2 ring-primary/20">
               <AvatarImage src={session.user.image ?? undefined} />
               <AvatarFallback className="bg-primary text-primary-foreground text-xs font-bold">
@@ -170,7 +200,10 @@ function NavContent({ collapsed = false, onNavClick, unreadCount, historyCount }
                 <LogOut className="h-5 w-5" />
               </button>
             </TooltipTrigger>
-            <TooltipContent side="right" className="font-semibold text-destructive">
+            <TooltipContent
+              side="right"
+              className="font-semibold text-destructive"
+            >
               Sign Out
             </TooltipContent>
           </Tooltip>
@@ -225,10 +258,14 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
         className={cn(
           "relative hidden md:flex h-full flex-col transition-all duration-200 ease-in-out shrink-0",
           "bg-sidebar border-r border-sidebar-border",
-          collapsed ? "w-16" : "w-60"
+          collapsed ? "w-16" : "w-60",
         )}
       >
-        <NavContent collapsed={collapsed} unreadCount={unreadCount} historyCount={historyCount} />
+        <NavContent
+          collapsed={collapsed}
+          unreadCount={unreadCount}
+          historyCount={historyCount}
+        />
 
         {/* Collapse toggle */}
         <div className="border-t border-sidebar-border px-3 pb-3 pt-1 shrink-0">
@@ -237,23 +274,34 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             className="flex w-full items-center justify-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-sidebar-foreground/40 hover:text-sidebar-foreground/70 hover:bg-sidebar-accent/50 transition-colors"
             aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
           >
-            {collapsed
-              ? <ChevronRight className="h-4 w-4" />
-              : <><ChevronLeft className="h-4 w-4" /><span>Collapse</span></>
-            }
+            {collapsed ? (
+              <ChevronRight className="h-4 w-4" />
+            ) : (
+              <>
+                <ChevronLeft className="h-4 w-4" />
+                <span>Collapse</span>
+              </>
+            )}
           </button>
         </div>
       </aside>
 
       {/* ── Mobile Sheet (visible on mobile only) ── */}
-      <Sheet open={mobileOpen} onOpenChange={(open) => !open && onMobileClose?.()}>
+      <Sheet
+        open={mobileOpen}
+        onOpenChange={(open) => !open && onMobileClose?.()}
+      >
         <SheetContent
           side="left"
           showCloseButton={false}
           className="flex flex-col gap-0 p-0 w-72 bg-sidebar border-sidebar-border"
         >
           <SheetTitle className="sr-only">Navigation</SheetTitle>
-          <NavContent onNavClick={onMobileClose} unreadCount={unreadCount} historyCount={historyCount} />
+          <NavContent
+            onNavClick={onMobileClose}
+            unreadCount={unreadCount}
+            historyCount={historyCount}
+          />
         </SheetContent>
       </Sheet>
     </TooltipProvider>

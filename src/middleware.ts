@@ -8,6 +8,8 @@ const PUBLIC_PATHS = [
   "/forgot-password",
   "/verify-email",
   "/invite",
+  // Cron jobs — authenticated via Bearer token, not session cookie
+  "/api/cron",
   // PWA assets — must always be accessible, even when unauthenticated
   "/manifest.webmanifest",
   "/sw.js",

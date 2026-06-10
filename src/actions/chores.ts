@@ -1,7 +1,7 @@
 "use server";
 
 import { db } from "@/db";
-import { chores, groupMembers, users } from "@/db/schema";
+import { chores, groupMembers, users, auditLogs } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
@@ -54,6 +54,15 @@ export async function createChore(
       ...rest,
     })
     .returning({ id: chores.id });
+
+  await db.insert(auditLogs).values({
+    groupId,
+    userId,
+    action: "chore.created",
+    resource: "chore",
+    resourceId: chore.id,
+    after: { title: rest.title },
+  });
 
   if (assignedToId && assignedToId !== userId) {
     const [creator] = await db
@@ -116,6 +125,15 @@ export async function updateChoreStatus(
     })
     .where(eq(chores.id, choreId));
 
+  await db.insert(auditLogs).values({
+    groupId: chore.groupId,
+    userId,
+    action: status === "completed" ? "chore.completed" : "chore.updated",
+    resource: "chore",
+    resourceId: choreId,
+    after: { title: chore.title, status },
+  });
+
   if (status === "completed") {
     const [completer] = await db
       .select({ name: users.name })
@@ -160,7 +178,7 @@ export async function deleteChore(
   choreId: string
 ): Promise<ActionResult> {
   const [chore] = await db
-    .select({ id: chores.id, createdById: chores.createdById })
+    .select({ id: chores.id, createdById: chores.createdById, groupId: chores.groupId })
     .from(chores)
     .where(eq(chores.id, choreId))
     .limit(1);
@@ -168,6 +186,15 @@ export async function deleteChore(
   if (!chore) return { success: false, error: "Chore not found" };
   if (chore.createdById !== userId)
     return { success: false, error: "Only the creator can delete this chore" };
+
+  await db.insert(auditLogs).values({
+    groupId: chore.groupId,
+    userId,
+    action: "chore.deleted",
+    resource: "chore",
+    resourceId: choreId,
+    after: null,
+  });
 
   await db.delete(chores).where(eq(chores.id, choreId));
 
