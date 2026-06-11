@@ -17,6 +17,7 @@ import { format } from "date-fns";
 import { fmt } from "./utils";
 import { CATEGORY_COLORS } from "./constants";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { ExpenseAnalytics } from "./expense-analytics";
 
 const PAGE_SIZE = 20;
 
@@ -161,13 +162,15 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
             {total} expense{total !== 1 ? "s" : ""} total
           </p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="lg">
           <Link href="/expenses/new">
             <Plus className="mr-2 h-4 w-4" />
             Add expense
           </Link>
         </Button>
       </div>
+
+      <ExpenseAnalytics groupId={groupId} />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
@@ -187,9 +190,9 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
               <div>
                 <p className="text-xs text-muted-foreground">You owe</p>
                 <p className="text-xl font-bold mt-0.5 text-destructive">₹{fmt(iOwe)}</p>
-                {iOweCredit > 0.01 && (
+                {/* {iOweCredit > 0.01 && (
                   <p className="text-xs text-green-600 mt-0.5">Credit: ₹{fmt(iOweCredit)}</p>
-                )}
+                )} */}
               </div>
               <TrendingDown className="h-8 w-8 text-destructive/30" />
             </div>

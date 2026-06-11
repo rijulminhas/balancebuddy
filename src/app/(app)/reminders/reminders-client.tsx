@@ -25,7 +25,7 @@ export function RemindersClient({ initialReminders }: RemindersClientProps) {
     <>
       {/* Add button */}
       <div className="flex justify-end">
-        <Button onClick={() => setFormOpen(true)} size="sm">
+        <Button onClick={() => setFormOpen(true)} size="lg">
           <Plus className="mr-1.5 h-4 w-4" />
           Add Reminder
         </Button>

@@ -36,9 +36,11 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
   const [activeModal, setActiveModal] = useState<ActiveModal>("none");
   const [redirectTo, setRedirectTo] = useState("/dashboard");
 
+  const hasOtherMembers = members.some((m) => m.userId !== userId);
+
   function openLeave(destination: string) {
     setRedirectTo(destination);
-    if (role === "owner") {
+    if (role === "owner" && hasOtherMembers) {
       setActiveModal("transfer-owner");
     } else {
       setActiveModal("leave-confirm");
@@ -67,11 +69,11 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          <DropdownMenuItem onSelect={handleCreateNewClick}>
+          {/* <DropdownMenuItem onSelect={handleCreateNewClick}>
             <Plus className="mr-2 h-4 w-4" />
             Create new group
           </DropdownMenuItem>
-          <DropdownMenuSeparator />
+          <DropdownMenuSeparator /> */}
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onSelect={handleLeaveClick}
@@ -92,7 +94,7 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
             <AlertDialogDescription>
               You can only be in one group at a time. To create a new group, you
               must leave your current group first.
-              {role === "owner"
+              {role === "owner" && hasOtherMembers
                 ? " As the owner, you will need to transfer ownership to another member before leaving."
                 : " You can always rejoin this group later with an invite code."}
             </AlertDialogDescription>
@@ -100,7 +102,7 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={handleCreateNewConfirm}>
-              {role === "owner" ? "Transfer & Leave" : "Leave group"}
+              {role === "owner" && hasOtherMembers ? "Transfer & Leave" : "Leave group"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

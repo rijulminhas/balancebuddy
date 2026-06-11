@@ -126,14 +126,20 @@ export function SettleDialog({
 
           <div className="space-y-1.5">
             <Label className="text-sm font-medium">Amount (₹)</Label>
-            <Input
-              {...register("amount", { valueAsNumber: true })}
-              type="number"
-              step="0.01"
-              min="0.01"
-              placeholder="0.00"
-              className="rounded-xl"
-            />
+            {defaultAmount != null ? (
+              <div className="flex items-center h-9 px-3 rounded-xl border border-input bg-muted text-sm font-semibold text-foreground select-none">
+                ₹{defaultAmount.toFixed(2)}
+              </div>
+            ) : (
+              <Input
+                {...register("amount", { valueAsNumber: true })}
+                type="number"
+                step="0.01"
+                min="0.01"
+                placeholder="0.00"
+                className="rounded-xl"
+              />
+            )}
             {errors.amount && (
               <p className="text-xs text-destructive">{errors.amount.message}</p>
             )}

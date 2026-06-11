@@ -87,13 +87,43 @@ export async function createChore(
   return { success: true, data: { choreId: chore.id } };
 }
 
+function computeNextDueDate(frequency: string, from: Date): Date {
+  const next = new Date(from);
+  switch (frequency) {
+    case "daily":
+      next.setDate(next.getDate() + 1);
+      break;
+    case "weekly":
+      next.setDate(next.getDate() + 7);
+      break;
+    case "biweekly":
+      next.setDate(next.getDate() + 14);
+      break;
+    case "monthly":
+      next.setMonth(next.getMonth() + 1);
+      break;
+  }
+  return next;
+}
+
 export async function updateChoreStatus(
   userId: string,
   choreId: string,
   status: "pending" | "in_progress" | "completed" | "skipped"
 ): Promise<ActionResult> {
   const [chore] = await db
-    .select({ id: chores.id, groupId: chores.groupId, title: chores.title })
+    .select({
+      id: chores.id,
+      groupId: chores.groupId,
+      title: chores.title,
+      description: chores.description,
+      assignedToId: chores.assignedToId,
+      createdById: chores.createdById,
+      frequency: chores.frequency,
+      dueDate: chores.dueDate,
+      points: chores.points,
+      isRecurring: chores.isRecurring,
+    })
     .from(chores)
     .where(eq(chores.id, choreId))
     .limit(1);
@@ -114,13 +144,15 @@ export async function updateChoreStatus(
 
   if (!membership) return { success: false, error: "Not authorized" };
 
+  const now = new Date();
+
   await db
     .update(chores)
     .set({
       status,
-      updatedAt: new Date(),
+      updatedAt: now,
       ...(status === "completed"
-        ? { completedAt: new Date(), completedById: userId }
+        ? { completedAt: now, completedById: userId }
         : {}),
     })
     .where(eq(chores.id, choreId));
@@ -164,6 +196,37 @@ export async function updateChoreStatus(
         `${completer?.name ?? "Someone"} completed: ${chore.title}`,
         { url: "/chores" }
       );
+    }
+
+    // Spawn next occurrence for recurring chores
+    if (chore.isRecurring && chore.frequency !== "once") {
+      const base = chore.dueDate ?? now;
+      const nextDueDate = computeNextDueDate(chore.frequency, base);
+
+      const [newChore] = await db
+        .insert(chores)
+        .values({
+          groupId: chore.groupId,
+          createdById: chore.createdById,
+          assignedToId: chore.assignedToId,
+          title: chore.title,
+          description: chore.description,
+          frequency: chore.frequency,
+          dueDate: nextDueDate,
+          points: chore.points,
+          isRecurring: true,
+          status: "pending",
+        })
+        .returning({ id: chores.id });
+
+      await db.insert(auditLogs).values({
+        groupId: chore.groupId,
+        userId,
+        action: "chore.created",
+        resource: "chore",
+        resourceId: newChore.id,
+        after: { title: chore.title, spawnedFrom: choreId },
+      });
     }
   }
 

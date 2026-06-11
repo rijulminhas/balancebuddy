@@ -172,7 +172,7 @@ export function EssentialsClient({
             </p>
           </div>
           <Button
-            size="sm"
+            size="lg"
             className="rounded-xl shrink-0 cursor-pointer"
             onClick={() => {
               setEditItem(null);

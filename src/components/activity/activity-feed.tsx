@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { PaginationBar } from "@/components/ui/pagination-bar";
+import { BackButton } from "@/components/ui/back-button";
 import {
   Receipt,
   ArrowLeftRight,
@@ -206,7 +207,8 @@ export async function ActivityFeed({ page = 1 }: { page?: number }) {
     <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <div className="flex items-center gap-2 mb-1">
+          <BackButton />
+          <div className="flex items-center gap-2 mb-1 mt-2">
             <Activity className="h-4 w-4 text-primary" />
             <span className="text-xs font-bold uppercase tracking-widest text-primary">
               Group Activity

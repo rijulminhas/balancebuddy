@@ -28,7 +28,7 @@ export function MarkAllReadButton({ userId }: MarkAllReadButtonProps) {
   return (
     <Button
       variant="outline"
-      size="sm"
+      size="lg"
       className="rounded-xl font-semibold"
       onClick={handleMarkAll}
       disabled={loading}
