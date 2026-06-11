@@ -185,7 +185,7 @@ export async function ChoreList({ completedPage = 1 }: { completedPage?: number 
             {totalActive} pending · {completedTotal} completed
           </p>
         </div>
-        <Button asChild size="sm">
+        <Button asChild size="lg">
           <Link href="/chores/new">
             <Plus className="mr-2 h-4 w-4" />
             Add Chore

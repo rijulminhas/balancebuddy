@@ -2,7 +2,7 @@
 
 import { db } from "@/db";
 import { groups, groupMembers, groupHistory, users } from "@/db/schema";
-import { eq, and, isNull, desc } from "drizzle-orm";
+import { eq, and, isNull, desc, ne } from "drizzle-orm";
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import { revalidatePath } from "next/cache";
@@ -117,12 +117,30 @@ export async function joinGroup(
     });
   }
 
+  // If this is the only active member, promote them to owner (handles empty group rejoin)
   const activeMembers = await db
     .select({ userId: groupMembers.userId })
     .from(groupMembers)
     .where(
       and(eq(groupMembers.groupId, group.id), eq(groupMembers.status, "active"))
     );
+
+  if (activeMembers.length === 1 && activeMembers[0].userId === userId) {
+    await db
+      .update(groupMembers)
+      .set({ role: "owner", updatedAt: new Date() })
+      .where(
+        and(
+          eq(groupMembers.groupId, group.id),
+          eq(groupMembers.userId, userId),
+          eq(groupMembers.status, "active")
+        )
+      );
+    await db
+      .update(groups)
+      .set({ ownerId: userId, updatedAt: new Date() })
+      .where(eq(groups.id, group.id));
+  }
 
   const [joiningUser] = await db
     .select({ name: users.name })
@@ -219,10 +237,24 @@ export async function leaveGroup(
 
   if (!member) return { success: false, error: "You are not a member of this group" };
   if (member.role === "owner") {
-    return {
-      success: false,
-      error: "Owner cannot leave the group. Transfer ownership first.",
-    };
+    const [otherActiveMember] = await db
+      .select({ id: groupMembers.id })
+      .from(groupMembers)
+      .where(
+        and(
+          eq(groupMembers.groupId, groupId),
+          eq(groupMembers.status, "active"),
+          ne(groupMembers.userId, userId)
+        )
+      )
+      .limit(1);
+
+    if (otherActiveMember) {
+      return {
+        success: false,
+        error: "Owner cannot leave the group. Transfer ownership first.",
+      };
+    }
   }
 
   const [groupData] = await db

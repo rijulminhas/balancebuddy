@@ -16,6 +16,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { ProfileForm } from "./profile-form";
 import { ChangePasswordModal } from "./change-password-modal";
+import { BackButton } from "@/components/ui/back-button";
 
 export async function ProfileSettings() {
   const session = await getServerSession(authOptions);
@@ -49,6 +50,7 @@ export async function ProfileSettings() {
 
   return (
     <div className="space-y-6">
+      <BackButton label="Back" />
       <ProfileForm
         defaultValues={{
           name: user.name,

@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { HistoryDeleteButton } from "./history-delete-button";
+import { BackButton } from "@/components/ui/back-button";
 import { Home, LogIn, History } from "lucide-react";
 
 interface GroupHistoryProps {
@@ -40,7 +41,10 @@ export async function GroupHistory({ title = "Group History" }: GroupHistoryProp
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        <div className="flex items-center gap-2">
+          <BackButton />
+          <h1 className="text-2xl font-semibold tracking-tight">{title}</h1>
+        </div>
         <Button variant="outline" size="sm" asChild>
           <Link href="/groups">
             <Home className="mr-2 h-4 w-4" />

@@ -5,6 +5,7 @@ import { groupMembers, users } from "@/db/schema";
 import { eq, and } from "drizzle-orm";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { BackButton } from "@/components/ui/back-button";
 import { ChoreForm } from "./chore-form";
 
 export async function NewChoreCard() {
@@ -28,7 +29,8 @@ export async function NewChoreCard() {
   return (
     <div className="max-w-lg">
       <div className="mb-6">
-        <h1 className="text-2xl font-semibold tracking-tight">New Chore</h1>
+        <BackButton />
+        <h1 className="text-2xl font-semibold tracking-tight mt-2">New Chore</h1>
         <p className="text-xs text-muted-foreground mt-0.5">
           Create and assign a task for your group
         </p>

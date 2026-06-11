@@ -215,7 +215,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
                         defaultAmount={t.amount}
                       >
                         <Button size="sm" variant="outline" className="rounded-xl h-7 px-2.5 text-xs font-semibold">
-                          Pay
+                          Record Payment if you have Payed
                         </Button>
                       </SettleDialog>
                     )}
