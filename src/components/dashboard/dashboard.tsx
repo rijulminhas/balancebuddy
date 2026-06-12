@@ -1,7 +1,7 @@
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { groupMembers, groups, expenses, chores, settlements, users } from "@/db/schema";
-import { eq, and, count, sum } from "drizzle-orm";
+import { eq, and, count, sum, desc } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,7 @@ async function getDashboardData(userId: string) {
     .select({ groupId: groupMembers.groupId, role: groupMembers.role })
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")))
+    .orderBy(desc(groupMembers.joinedAt))
     .limit(1);
 
   if (!membership) return null;

@@ -49,6 +49,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
     .select({ groupId: groupMembers.groupId })
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, session.user.id), eq(groupMembers.status, "active")))
+    .orderBy(desc(groupMembers.joinedAt))
     .limit(1);
 
   if (!membership) redirect("/groups");

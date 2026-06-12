@@ -135,11 +135,18 @@ export async function computeGroupBalances(groupId: string): Promise<{
     netMap.set(toUserId, (netMap.get(toUserId) ?? 0) + amount);
   }
 
+  // Round all net balances to 2 decimal places so memberBalances display
+  // and optimizeSettlements use exactly the same values (avoids off-by-one
+  // where raw=-0.01 rounds to -0.01 in display but fails the strict < -0.01 check).
+  for (const [key, value] of netMap) {
+    netMap.set(key, Math.round(value * 100) / 100);
+  }
+
   const memberBalances: MemberBalance[] = Array.from(netMap.entries()).map(
     ([userId, netBalance]) => ({
       userId,
       name: nameMap.get(userId) ?? "Unknown",
-      netBalance: Math.round(netBalance * 100) / 100,
+      netBalance,
     })
   );
 
@@ -158,8 +165,8 @@ function optimizeSettlements(
   const debtors: Array<{ id: string; amount: number }> = [];
 
   for (const [id, balance] of netMap) {
-    if (balance > 0.01) creditors.push({ id, amount: balance });
-    else if (balance < -0.01) debtors.push({ id, amount: -balance });
+    if (balance >= 0.01) creditors.push({ id, amount: balance });
+    else if (balance <= -0.01) debtors.push({ id, amount: -balance });
   }
 
   creditors.sort((a, b) => b.amount - a.amount);

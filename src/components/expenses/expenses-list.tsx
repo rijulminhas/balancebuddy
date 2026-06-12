@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { expenses, expenseParticipants, groupMembers, users, settlements } from "@/db/schema";
 import { eq, and, desc, count, sum } from "drizzle-orm";
@@ -22,13 +21,14 @@ import { ExpenseAnalytics } from "./expense-analytics";
 const PAGE_SIZE = 20;
 
 export async function ExpensesList({ page = 1 }: { page?: number }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const [membership] = await db
     .select({ groupId: groupMembers.groupId })
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, session.user.id), eq(groupMembers.status, "active")))
+    .orderBy(desc(groupMembers.joinedAt))
     .limit(1);
 
   if (!membership) redirect("/groups");
