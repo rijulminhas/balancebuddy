@@ -1,5 +1,4 @@
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/lib/auth";
+import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { groupMembers, settlements, users } from "@/db/schema";
 import { eq, and, desc, count } from "drizzle-orm";
@@ -43,7 +42,7 @@ const STATUS_BADGE: Record<
 };
 
 export async function SettlementsList({ historyPage = 1 }: { historyPage?: number }) {
-  const session = await getServerSession(authOptions);
+  const session = await getSession();
   if (!session) redirect("/login");
 
   const [membership] = await db

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { SettlementsList } from "@/components/settlements/settlements-list";
 
+export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Settlements" };
 
 export default async function SettlementsPage({
