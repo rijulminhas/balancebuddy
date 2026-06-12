@@ -17,7 +17,7 @@ export const metadata: Metadata = {
     template: "%s | BalanceBuddy",
   },
   description:
-    "The Expense Management Operating System — manage expenses, chores, inventory and more for your shared home.",
+    "The Expense Management Platform — manage expenses, chores, inventory and more for your shared home.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,

@@ -164,7 +164,7 @@ export default async function LandingPage() {
         <div className="mx-auto max-w-3xl">
           <div className="mb-5 inline-flex items-center gap-2 rounded-full border bg-background px-4 py-1.5 text-xs font-medium text-muted-foreground shadow-sm">
             <Zap className="h-3 w-3 text-primary" />
-            The Expense Management Operating System
+            The Expense Management Platform
           </div>
           <h1 className="text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl">
             Everything your group needs,{" "}
