@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
-import { groupMembers, groups, expenses, expenseParticipants, chores, settlements, users } from "@/db/schema";
+import { groupMembers, groups, expenses, chores, settlements, users } from "@/db/schema";
 import { eq, and, count, sum } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -13,6 +13,7 @@ import {
   Plus,
   ArrowRight,
   TrendingUp,
+  TrendingDown,
   Users,
   Sparkles,
   AlertCircle,
@@ -22,6 +23,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fmt } from "./utils";
 import { PaymentConfirmationActions } from "@/components/settlements/payment-confirmation-actions";
+import { computeGroupBalances } from "@/actions/settlements";
 
 async function getDashboardData(userId: string) {
   const [membership] = await db
@@ -40,8 +42,7 @@ async function getDashboardData(userId: string) {
     [expenseStats],
     pendingChores,
     awaitingConfirmations,
-    myOwed,
-    mySettlementsPaid,
+    { memberBalances },
   ] = await Promise.all([
     db.select({ name: groups.name }).from(groups).where(eq(groups.id, groupId)).limit(1),
 
@@ -57,7 +58,6 @@ async function getDashboardData(userId: string) {
       .where(and(eq(chores.groupId, groupId), eq(chores.status, "pending")))
       .limit(5),
 
-    // Settlements awaiting THIS user's confirmation (User B view)
     db
       .select({
         id: settlements.id,
@@ -76,28 +76,11 @@ async function getDashboardData(userId: string) {
       )
       .limit(5),
 
-    db.select({ shareAmount: expenseParticipants.shareAmount, paidById: expenses.paidById })
-      .from(expenseParticipants)
-      .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
-      .where(and(
-        eq(expenseParticipants.userId, userId),
-        eq(expenses.groupId, groupId),
-      )),
-
-    db.select({ total: sum(settlements.amount) })
-      .from(settlements)
-      .where(and(
-        eq(settlements.groupId, groupId),
-        eq(settlements.fromUserId, userId),
-        eq(settlements.status, "completed"),
-      )),
+    // Use the same balance engine as the settlements page for consistency
+    computeGroupBalances(groupId),
   ]);
 
-  const grossIOwe = myOwed
-    .filter((r) => r.paidById !== userId)
-    .reduce((s, r) => s + Number(r.shareAmount), 0);
-  const totalIPaid = Number(mySettlementsPaid[0]?.total ?? 0);
-  const iOwe = Math.max(0, grossIOwe - totalIPaid);
+  const myNetBalance = memberBalances.find((b) => b.userId === userId)?.netBalance ?? 0;
 
   return {
     group: groupInfo,
@@ -108,7 +91,7 @@ async function getDashboardData(userId: string) {
     expenseCount: expenseStats.expenseCount,
     pendingChores,
     awaitingConfirmations,
-    iOwe,
+    myNetBalance,
   };
 }
 
@@ -280,16 +263,56 @@ export async function Dashboard() {
 
       {/* ── Balance row ────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2">
-        <Card className="border-destructive/20 bg-destructive/5">
+        <Card
+          className={
+            data.myNetBalance > 0
+              ? "border-green-500/30 bg-green-500/5"
+              : data.myNetBalance < 0
+              ? "border-destructive/20 bg-destructive/5"
+              : "border-border/60"
+          }
+        >
           <CardContent className="flex items-center justify-between py-5 px-5">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wider text-destructive/70">You Owe</p>
-              <p className="text-3xl font-black tracking-tight text-destructive mt-1">
-                ₹{fmt(data.iOwe)}
+              <p
+                className={`text-xs font-bold uppercase tracking-wider ${
+                  data.myNetBalance > 0
+                    ? "text-green-600/70"
+                    : data.myNetBalance < 0
+                    ? "text-destructive/70"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {data.myNetBalance > 0 ? "You Are Owed" : data.myNetBalance < 0 ? "You Owe" : "All Settled"}
+              </p>
+              <p
+                className={`text-3xl font-black tracking-tight mt-1 ${
+                  data.myNetBalance > 0
+                    ? "text-green-600"
+                    : data.myNetBalance < 0
+                    ? "text-destructive"
+                    : "text-muted-foreground"
+                }`}
+              >
+                {data.myNetBalance === 0 ? "₹0.00" : `₹${fmt(Math.abs(data.myNetBalance))}`}
               </p>
             </div>
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-destructive/10">
-              <TrendingUp className="h-6 w-6 text-destructive" />
+            <div
+              className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
+                data.myNetBalance > 0
+                  ? "bg-green-500/10"
+                  : data.myNetBalance < 0
+                  ? "bg-destructive/10"
+                  : "bg-muted"
+              }`}
+            >
+              {data.myNetBalance > 0 ? (
+                <TrendingDown className="h-6 w-6 text-green-600" />
+              ) : data.myNetBalance < 0 ? (
+                <TrendingUp className="h-6 w-6 text-destructive" />
+              ) : (
+                <Sparkles className="h-6 w-6 text-muted-foreground" />
+              )}
             </div>
           </CardContent>
         </Card>
