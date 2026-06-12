@@ -9,8 +9,10 @@ import {
 import { users } from "./users";
 import { groups } from "./groups";
 
+
 export const settlementStatusEnum = pgEnum("settlement_status", [
   "pending",
+  "awaiting_confirmation",
   "completed",
   "cancelled",
 ]);
@@ -29,6 +31,12 @@ export const settlements = pgTable("settlements", {
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   status: settlementStatusEnum("status").default("pending").notNull(),
   note: text("note"),
+  paymentMethod: text("payment_method"),
+  paymentReference: text("payment_reference"),
+  submittedAt: timestamp("submitted_at"),
+  rejectedBy: uuid("rejected_by").references(() => users.id, { onDelete: "set null" }),
+  rejectedAt: timestamp("rejected_at"),
+  rejectionReason: text("rejection_reason"),
   settledAt: timestamp("settled_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

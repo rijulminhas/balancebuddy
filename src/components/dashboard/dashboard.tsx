@@ -1,6 +1,6 @@
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
-import { groupMembers, groups, expenses, expenseParticipants, chores, settlements } from "@/db/schema";
+import { groupMembers, groups, expenses, expenseParticipants, chores, settlements, users } from "@/db/schema";
 import { eq, and, count, sum } from "drizzle-orm";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -15,10 +15,13 @@ import {
   TrendingUp,
   Users,
   Sparkles,
+  AlertCircle,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { fmt } from "./utils";
+import { PaymentConfirmationActions } from "@/components/settlements/payment-confirmation-actions";
 
 async function getDashboardData(userId: string) {
   const [membership] = await db
@@ -31,43 +34,64 @@ async function getDashboardData(userId: string) {
 
   const { groupId } = membership;
 
-  const [[groupInfo], [memberCount], [expenseStats], pendingChores, pendingSettlements, myOwed, mySettlementsPaid] =
-    await Promise.all([
-      db.select({ name: groups.name }).from(groups).where(eq(groups.id, groupId)).limit(1),
+  const [
+    [groupInfo],
+    [memberCount],
+    [expenseStats],
+    pendingChores,
+    awaitingConfirmations,
+    myOwed,
+    mySettlementsPaid,
+  ] = await Promise.all([
+    db.select({ name: groups.name }).from(groups).where(eq(groups.id, groupId)).limit(1),
 
-      db.select({ count: count() }).from(groupMembers)
-        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))),
+    db.select({ count: count() }).from(groupMembers)
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))),
 
-      db.select({ total: sum(expenses.amount), expenseCount: count() })
-        .from(expenses)
-        .where(and(eq(expenses.groupId, groupId), eq(expenses.isSettled, false))),
+    db.select({ total: sum(expenses.amount), expenseCount: count() })
+      .from(expenses)
+      .where(and(eq(expenses.groupId, groupId), eq(expenses.isSettled, false))),
 
-      db.select({ id: chores.id, title: chores.title, assignedToId: chores.assignedToId })
-        .from(chores)
-        .where(and(eq(chores.groupId, groupId), eq(chores.status, "pending")))
-        .limit(5),
+    db.select({ id: chores.id, title: chores.title, assignedToId: chores.assignedToId })
+      .from(chores)
+      .where(and(eq(chores.groupId, groupId), eq(chores.status, "pending")))
+      .limit(5),
 
-      db.select({ id: settlements.id, amount: settlements.amount, fromUserId: settlements.fromUserId })
-        .from(settlements)
-        .where(and(eq(settlements.groupId, groupId), eq(settlements.status, "pending"), eq(settlements.toUserId, userId)))
-        .limit(5),
-
-      db.select({ shareAmount: expenseParticipants.shareAmount, paidById: expenses.paidById })
-        .from(expenseParticipants)
-        .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
-        .where(and(
-          eq(expenseParticipants.userId, userId),
-          eq(expenses.groupId, groupId),
-        )),
-
-      db.select({ total: sum(settlements.amount) })
-        .from(settlements)
-        .where(and(
+    // Settlements awaiting THIS user's confirmation (User B view)
+    db
+      .select({
+        id: settlements.id,
+        amount: settlements.amount,
+        fromUserId: settlements.fromUserId,
+        fromUserName: users.name,
+      })
+      .from(settlements)
+      .innerJoin(users, eq(users.id, settlements.fromUserId))
+      .where(
+        and(
           eq(settlements.groupId, groupId),
-          eq(settlements.fromUserId, userId),
-          eq(settlements.status, "completed"),
-        )),
-    ]);
+          eq(settlements.toUserId, userId),
+          eq(settlements.status, "awaiting_confirmation")
+        )
+      )
+      .limit(5),
+
+    db.select({ shareAmount: expenseParticipants.shareAmount, paidById: expenses.paidById })
+      .from(expenseParticipants)
+      .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
+      .where(and(
+        eq(expenseParticipants.userId, userId),
+        eq(expenses.groupId, groupId),
+      )),
+
+    db.select({ total: sum(settlements.amount) })
+      .from(settlements)
+      .where(and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.fromUserId, userId),
+        eq(settlements.status, "completed"),
+      )),
+  ]);
 
   const grossIOwe = myOwed
     .filter((r) => r.paidById !== userId)
@@ -83,7 +107,7 @@ async function getDashboardData(userId: string) {
     totalUnsettledExpenses: expenseStats.total ?? "0",
     expenseCount: expenseStats.expenseCount,
     pendingChores,
-    pendingSettlements,
+    awaitingConfirmations,
     iOwe,
   };
 }
@@ -120,6 +144,7 @@ export async function Dashboard() {
   }
 
   const firstName = session.user.name?.split(" ")[0] ?? "there";
+  const confirmationCount = data.awaitingConfirmations.length;
 
   const statCards = [
     {
@@ -147,12 +172,12 @@ export async function Dashboard() {
       bg: "bg-emerald-500/10",
     },
     {
-      label: "Owed to You",
-      value: data.pendingSettlements.length,
+      label: confirmationCount > 0 ? `Awaiting Confirmation (${confirmationCount})` : "Awaiting Confirmation",
+      value: confirmationCount,
       icon: ArrowLeftRight,
       href: "/settlements",
-      color: "text-violet-500",
-      bg: "bg-violet-500/10",
+      color: confirmationCount > 0 ? "text-amber-500" : "text-violet-500",
+      bg: confirmationCount > 0 ? "bg-amber-500/10" : "bg-violet-500/10",
     },
   ];
 
@@ -178,6 +203,59 @@ export async function Dashboard() {
         </Button>
       </div>
 
+      {/* ── Payment Confirmation Alert ─────────────────────────────── */}
+      {confirmationCount > 0 && (
+        <Card className="border-amber-500/50 bg-amber-500/8 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-amber-500/20">
+                  <AlertCircle className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-base font-bold text-amber-700 dark:text-amber-400">
+                    Payment Confirmation Required
+                  </CardTitle>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {confirmationCount} payment{confirmationCount !== 1 ? "s" : ""} waiting for your confirmation
+                  </p>
+                </div>
+              </div>
+              <Button variant="ghost" size="sm" asChild className="rounded-xl font-semibold text-xs shrink-0">
+                <Link href="/settlements">
+                  View All <ArrowRight className="ml-1 h-3 w-3" />
+                </Link>
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {data.awaitingConfirmations.map((item) => (
+              <div
+                key={item.id}
+                className="flex items-center justify-between rounded-xl border border-amber-500/20 bg-background px-4 py-3 gap-3"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">
+                    <span className="font-semibold">{item.fromUserName}</span>
+                    {" "}claims to have paid{" "}
+                    <span className="font-semibold text-green-600">
+                      ₹{Number(item.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}
+                    </span>
+                  </p>
+                </div>
+                <PaymentConfirmationActions
+                  settlementId={item.id}
+                  payerName={item.fromUserName ?? "Unknown"}
+                  amount={Number(item.amount)}
+                  userId={session.user.id}
+                />
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Stat cards ─────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {statCards.map((card) => {
           const Icon = card.icon;
@@ -192,7 +270,7 @@ export async function Dashboard() {
                     <ArrowRight className="h-4 w-4 text-muted-foreground/40 mt-1" />
                   </div>
                   <p className="text-3xl font-black tracking-tight">{card.value}</p>
-                  <p className="text-xs font-semibold text-muted-foreground mt-0.5">{card.label}</p>
+                  <p className="text-xs font-semibold text-muted-foreground mt-0.5 line-clamp-1">{card.label}</p>
                 </CardContent>
               </Card>
             </Link>
@@ -200,6 +278,7 @@ export async function Dashboard() {
         })}
       </div>
 
+      {/* ── Balance row ────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card className="border-destructive/20 bg-destructive/5">
           <CardContent className="flex items-center justify-between py-5 px-5">
@@ -235,6 +314,7 @@ export async function Dashboard() {
         </Card>
       </div>
 
+      {/* ── Chores + Settlements detail ────────────────────────────── */}
       <div className="grid gap-4 lg:grid-cols-2">
         <Card className="border-border/60">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
@@ -272,27 +352,35 @@ export async function Dashboard() {
         <Card className="border-border/60">
           <CardHeader className="flex flex-row items-center justify-between pb-3">
             <div className="flex items-center gap-2">
-              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-violet-500/10">
-                <ArrowLeftRight className="h-4 w-4 text-violet-500" />
+              <div className={`flex h-7 w-7 items-center justify-center rounded-xl ${confirmationCount > 0 ? "bg-amber-500/10" : "bg-violet-500/10"}`}>
+                {confirmationCount > 0 ? (
+                  <Clock className="h-4 w-4 text-amber-500" />
+                ) : (
+                  <ArrowLeftRight className="h-4 w-4 text-violet-500" />
+                )}
               </div>
-              <CardTitle className="text-base font-bold">Owed to You</CardTitle>
+              <CardTitle className="text-base font-bold">
+                {confirmationCount > 0 ? "Awaiting Confirmation" : "Settlements"}
+              </CardTitle>
             </div>
             <Button variant="ghost" size="sm" asChild className="rounded-xl font-semibold text-xs">
               <Link href="/settlements">View All <ArrowRight className="ml-1 h-3 w-3" /></Link>
             </Button>
           </CardHeader>
           <CardContent>
-            {data.pendingSettlements.length === 0 ? (
+            {data.awaitingConfirmations.length === 0 ? (
               <div className="flex items-center gap-2 py-3 text-sm text-muted-foreground">
                 <Sparkles className="h-4 w-4 text-violet-500" />
                 All settled up!
               </div>
             ) : (
               <ul className="space-y-2">
-                {data.pendingSettlements.map((s) => (
-                  <li key={s.id} className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2.5">
-                    <span className="text-sm font-medium text-muted-foreground truncate">{s.fromUserId}</span>
-                    <Badge variant="success" className="font-bold">
+                {data.awaitingConfirmations.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between rounded-xl bg-amber-500/5 border border-amber-500/20 px-3 py-2.5">
+                    <span className="text-sm font-medium text-muted-foreground truncate">
+                      {s.fromUserName ?? s.fromUserId}
+                    </span>
+                    <Badge variant="warning" className="font-bold shrink-0">
                       ₹{Number(s.amount).toLocaleString("en-IN")}
                     </Badge>
                   </li>

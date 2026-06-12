@@ -20,15 +20,27 @@ import {
   TrendingDown,
   TrendingUp,
   Sparkles,
-  Plus,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { format } from "date-fns";
-import { computeGroupBalances } from "@/actions/settlements";
+import { computeGroupBalances, getAwaitingConfirmations } from "@/actions/settlements";
 import { SettleDialog } from "./settle-dialog";
+import { PaymentConfirmationActions } from "./payment-confirmation-actions";
 import { fmt } from "./utils";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 
 const HISTORY_PAGE_SIZE = 20;
+
+const STATUS_BADGE: Record<
+  string,
+  { label: string; variant: "success" | "warning" | "secondary" | "destructive" | "outline" }
+> = {
+  completed: { label: "Settled", variant: "success" },
+  awaiting_confirmation: { label: "Awaiting Confirmation", variant: "warning" },
+  pending: { label: "Pending", variant: "secondary" },
+  cancelled: { label: "Cancelled", variant: "destructive" },
+};
 
 export async function SettlementsList({ historyPage = 1 }: { historyPage?: number }) {
   const session = await getServerSession(authOptions);
@@ -45,48 +57,51 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
   const { groupId } = membership;
   const historyOffset = (historyPage - 1) * HISTORY_PAGE_SIZE;
 
-  const [{ memberBalances, optimizedTransactions }, allMembers, recentSettlements, [{ historyTotal }]] =
-    await Promise.all([
-      computeGroupBalances(groupId),
+  const [
+    { memberBalances, optimizedTransactions },
+    allMembers,
+    recentSettlements,
+    [{ historyTotal }],
+    awaitingConfirmations,
+  ] = await Promise.all([
+    computeGroupBalances(groupId),
 
-      db
-        .select({ id: users.id, name: users.name })
-        .from(users)
-        .innerJoin(groupMembers, eq(groupMembers.userId, users.id))
-        .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))),
+    db
+      .select({ id: users.id, name: users.name })
+      .from(users)
+      .innerJoin(groupMembers, eq(groupMembers.userId, users.id))
+      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active"))),
 
-      db
-        .select({
-          id: settlements.id,
-          fromUserId: settlements.fromUserId,
-          toUserId: settlements.toUserId,
-          amount: settlements.amount,
-          status: settlements.status,
-          note: settlements.note,
-          settledAt: settlements.settledAt,
-          createdAt: settlements.createdAt,
-        })
-        .from(settlements)
-        .where(eq(settlements.groupId, groupId))
-        .orderBy(desc(settlements.createdAt))
-        .limit(HISTORY_PAGE_SIZE)
-        .offset(historyOffset),
+    db
+      .select({
+        id: settlements.id,
+        fromUserId: settlements.fromUserId,
+        toUserId: settlements.toUserId,
+        amount: settlements.amount,
+        status: settlements.status,
+        note: settlements.note,
+        settledAt: settlements.settledAt,
+        createdAt: settlements.createdAt,
+      })
+      .from(settlements)
+      .where(eq(settlements.groupId, groupId))
+      .orderBy(desc(settlements.createdAt))
+      .limit(HISTORY_PAGE_SIZE)
+      .offset(historyOffset),
 
-      db
-        .select({ historyTotal: count() })
-        .from(settlements)
-        .where(eq(settlements.groupId, groupId)),
-    ]);
+    db
+      .select({ historyTotal: count() })
+      .from(settlements)
+      .where(eq(settlements.groupId, groupId)),
+
+    getAwaitingConfirmations(groupId, session.user.id),
+  ]);
 
   const historyTotalPages = Math.ceil(historyTotal / HISTORY_PAGE_SIZE);
 
   const nameMap = new Map(allMembers.map((m) => [m.id, m.name ?? "Unknown"]));
   const myBalance = memberBalances.find((b) => b.userId === session.user.id);
   const myNetBalance = myBalance?.netBalance ?? 0;
-
-  // Check for overpayment credit (I paid more settlements than I owed)
-  // netBalance > 0 means others owe me; < 0 means I owe; credit shown when I overpaid
-  // The optimized transactions already reflect the correct net after settlements
 
   const myTransactions = optimizedTransactions.filter(
     (t) => t.fromUserId === session.user.id || t.toUserId === session.user.id
@@ -108,14 +123,89 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
             Smart debt optimization — minimize transactions
           </p>
         </div>
-        {/* <SettleDialog groupId={groupId} members={membersForDialog}>
-          <Button size="sm">
-            <Plus className="mr-2 h-4 w-4" />
-            Record Payment
-          </Button>
-        </SettleDialog> */}
+        {awaitingConfirmations.length > 0 && (
+          <Badge className="rounded-xl px-3 py-1 text-xs font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30">
+            <Clock className="mr-1.5 h-3.5 w-3.5" />
+            Awaiting Confirmation ({awaitingConfirmations.length})
+          </Badge>
+        )}
       </div>
 
+      {/* ── Awaiting Your Confirmation ─────────────────────────────────── */}
+      {awaitingConfirmations.length > 0 && (
+        <Card className="border-amber-500/40 bg-amber-500/5 shadow-sm">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <div className="flex h-7 w-7 items-center justify-center rounded-xl bg-amber-500/15">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+              </div>
+              <CardTitle className="text-base font-bold text-amber-700 dark:text-amber-400">
+                Awaiting Your Confirmation
+              </CardTitle>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Review each payment claim and confirm or reject receipt.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {awaitingConfirmations.map((item) => (
+              <div
+                key={item.id}
+                className="rounded-xl border border-amber-500/20 bg-background px-4 py-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 min-w-0">
+                    <p className="text-sm font-semibold">
+                      {item.fromUserName}{" "}
+                      <span className="font-normal text-muted-foreground">claims to have paid</span>{" "}
+                      <span className="text-green-600">₹{fmt(item.amount)}</span>
+                    </p>
+                    <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-xs text-muted-foreground">
+                      {item.paymentMethod && (
+                        <span>
+                          Method:{" "}
+                          <span className="font-medium text-foreground capitalize">
+                            {item.paymentMethod.replace("_", " ")}
+                          </span>
+                        </span>
+                      )}
+                      {item.paymentReference && (
+                        <span>
+                          Ref:{" "}
+                          <span className="font-medium text-foreground font-mono">
+                            {item.paymentReference}
+                          </span>
+                        </span>
+                      )}
+                      {item.note && (
+                        <span>
+                          Note: <span className="font-medium text-foreground">{item.note}</span>
+                        </span>
+                      )}
+                      {item.submittedAt && (
+                        <span>
+                          Submitted:{" "}
+                          <span className="font-medium text-foreground">
+                            {format(new Date(item.submittedAt), "dd MMM yyyy, hh:mm a")}
+                          </span>
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <PaymentConfirmationActions
+                    settlementId={item.id}
+                    payerName={item.fromUserName}
+                    amount={item.amount}
+                    userId={session.user.id}
+                  />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Balance card ───────────────────────────────────────────────── */}
       <div className="grid gap-4 sm:grid-cols-2">
         <Card
           className={
@@ -170,6 +260,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
         )}
       </div>
 
+      {/* ── Suggested settlements ─────────────────────────────────────── */}
       {optimizedTransactions.length > 0 && (
         <Card className="border-border/60">
           <CardHeader className="pb-3">
@@ -215,7 +306,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
                         defaultAmount={t.amount}
                       >
                         <Button size="sm" variant="outline" className="rounded-xl h-7 px-2.5 text-xs font-semibold">
-                          Record Payment if you have Payed
+                          Record Payment
                         </Button>
                       </SettleDialog>
                     )}
@@ -230,6 +321,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
         </Card>
       )}
 
+      {/* ── Group balance summary ─────────────────────────────────────── */}
       {memberBalances.length > 0 && (
         <Card className="border-border/60">
           <CardHeader className="pb-3">
@@ -279,6 +371,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
         </Card>
       )}
 
+      {/* ── Payment history ───────────────────────────────────────────── */}
       <Card className="border-border/60">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -305,6 +398,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
                     <TableHead>From</TableHead>
                     <TableHead>To</TableHead>
                     <TableHead className="text-right">Amount</TableHead>
+                    <TableHead>Status</TableHead>
                     <TableHead>Date</TableHead>
                     <TableHead>Note</TableHead>
                   </TableRow>
@@ -313,6 +407,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
                   {recentSettlements.map((s) => {
                     const isFromMe = s.fromUserId === session.user.id;
                     const isToMe = s.toUserId === session.user.id;
+                    const statusCfg = STATUS_BADGE[s.status] ?? STATUS_BADGE.pending;
                     return (
                       <TableRow key={s.id}>
                         <TableCell className="text-sm font-medium">
@@ -331,6 +426,11 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
                         </TableCell>
                         <TableCell className="text-right text-sm font-semibold">
                           ₹{fmt(Number(s.amount))}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={statusCfg.variant} className="text-xs whitespace-nowrap">
+                            {statusCfg.label}
+                          </Badge>
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {format(new Date(s.settledAt ?? s.createdAt), "dd MMM yyyy")}

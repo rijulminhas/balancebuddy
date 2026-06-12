@@ -88,7 +88,7 @@ export function SettleDialog({
       toast.error(result.error);
       return;
     }
-    toast.success("Payment recorded successfully!");
+    toast.success("Payment submitted! Waiting for the recipient to confirm.");
     reset();
     setOpen(false);
   }

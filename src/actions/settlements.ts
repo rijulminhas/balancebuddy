@@ -10,7 +10,7 @@ import {
   users,
   auditLogs,
 } from "@/db/schema";
-import { eq, and, asc, inArray, count } from "drizzle-orm";
+import { eq, and, asc, inArray, count, lt } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
@@ -36,13 +36,23 @@ export interface MemberBalance {
   netBalance: number;
 }
 
+export interface AwaitingConfirmationItem {
+  id: string;
+  amount: number;
+  paymentMethod: string | null;
+  paymentReference: string | null;
+  note: string | null;
+  submittedAt: Date | null;
+  fromUserId: string;
+  fromUserName: string;
+}
+
 export async function computeGroupBalances(groupId: string): Promise<{
   rawDebts: RawDebt[];
   memberBalances: MemberBalance[];
   optimizedTransactions: OptimizedTransaction[];
   nameMap: Map<string, string>;
 }> {
-  // Fetch all expense shares (both paid and unpaid) to compute gross debts
   const allShares = await db
     .select({
       participantUserId: expenseParticipants.userId,
@@ -53,7 +63,6 @@ export async function computeGroupBalances(groupId: string): Promise<{
     .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
     .where(eq(expenses.groupId, groupId));
 
-  // Aggregate gross debt per (from, to) pair from all expense shares
   const grossDebtMap = new Map<string, number>();
   for (const r of allShares) {
     if (r.participantUserId === r.expensePaidById) continue;
@@ -61,7 +70,7 @@ export async function computeGroupBalances(groupId: string): Promise<{
     grossDebtMap.set(key, (grossDebtMap.get(key) ?? 0) + Number(r.shareAmount));
   }
 
-  // Fetch all completed settlements to subtract from gross debts
+  // Only completed settlements reduce debt (awaiting_confirmation does NOT count)
   const completedSettlements = await db
     .select({
       fromUserId: settlements.fromUserId,
@@ -71,14 +80,12 @@ export async function computeGroupBalances(groupId: string): Promise<{
     .from(settlements)
     .where(and(eq(settlements.groupId, groupId), eq(settlements.status, "completed")));
 
-  // Aggregate total paid per (from, to) pair
   const paidMap = new Map<string, number>();
   for (const s of completedSettlements) {
     const key = `${s.fromUserId}::${s.toUserId}`;
     paidMap.set(key, (paidMap.get(key) ?? 0) + Number(s.amount));
   }
 
-  // Net debt = gross debt - payments made; overpayments flip the direction
   const netDebtMap = new Map<string, number>();
   for (const [key, gross] of grossDebtMap) {
     const [from, to] = key.split("::");
@@ -87,13 +94,11 @@ export async function computeGroupBalances(groupId: string): Promise<{
     if (net > 0.01) {
       netDebtMap.set(key, net);
     } else if (net < -0.01) {
-      // Overpayment: creditor now owes the payer the excess
       const reverseKey = `${to}::${from}`;
       netDebtMap.set(reverseKey, (netDebtMap.get(reverseKey) ?? 0) + Math.abs(net));
     }
   }
 
-  // Also handle settlements that have no corresponding expense debt (pure credit payments)
   for (const [key, paid] of paidMap) {
     if (!grossDebtMap.has(key)) {
       const [from, to] = key.split("::");
@@ -143,7 +148,6 @@ export async function computeGroupBalances(groupId: string): Promise<{
   return { rawDebts, memberBalances, optimizedTransactions, nameMap };
 }
 
-// Backward-compat alias
 export const computeFlatBalances = computeGroupBalances;
 
 function optimizeSettlements(
@@ -221,6 +225,27 @@ export async function recordSettlement(
 
   if (!membership) return { success: false, error: "Not a member of this group" };
 
+  // Prevent duplicate submissions while one is already awaiting confirmation
+  const [existing] = await db
+    .select({ id: settlements.id })
+    .from(settlements)
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.fromUserId, userId),
+        eq(settlements.toUserId, toUserId),
+        eq(settlements.status, "awaiting_confirmation")
+      )
+    )
+    .limit(1);
+
+  if (existing) {
+    return {
+      success: false,
+      error: "A payment is already awaiting confirmation. Please wait for the recipient to respond.",
+    };
+  }
+
   const [settlement] = await db
     .insert(settlements)
     .values({
@@ -228,9 +253,11 @@ export async function recordSettlement(
       fromUserId: userId,
       toUserId,
       amount: String(amount),
-      status: "completed",
-      settledAt: new Date(),
+      status: "awaiting_confirmation",
       note,
+      paymentMethod: method ?? null,
+      paymentReference: reference ?? null,
+      submittedAt: new Date(),
     })
     .returning({ id: settlements.id });
 
@@ -248,12 +275,243 @@ export async function recordSettlement(
   await db.insert(auditLogs).values({
     groupId,
     userId,
-    action: "settlement.created",
+    action: "settlement.payment_submitted",
     resource: "settlement",
     resourceId: settlement.id,
-    after: { amount, toUserId },
+    after: { amount, toUserId, status: "awaiting_confirmation" },
   });
 
+  const [fromUser] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  await notifyUsers(
+    [toUserId],
+    groupId,
+    "payment_confirmation_required",
+    "Payment Confirmation Required",
+    `${fromUser?.name ?? "Someone"} has recorded a payment of ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}. Please confirm whether you received it.`,
+    { data: { settlementId: settlement.id }, url: "/settlements" }
+  );
+
+  revalidatePath("/settlements");
+  revalidatePath("/expenses");
+  revalidatePath("/dashboard");
+
+  return { success: true, data: { settlementId: settlement.id } };
+}
+
+export async function confirmPayment(
+  userId: string,
+  settlementId: string
+): Promise<ActionResult<void>> {
+  const [settlement] = await db
+    .select()
+    .from(settlements)
+    .where(eq(settlements.id, settlementId))
+    .limit(1);
+
+  if (!settlement) return { success: false, error: "Settlement not found" };
+  if (settlement.toUserId !== userId)
+    return { success: false, error: "Only the payment receiver can confirm" };
+  if (settlement.status !== "awaiting_confirmation")
+    return { success: false, error: "This payment is not awaiting confirmation" };
+
+  await db
+    .update(settlements)
+    .set({ status: "completed", settledAt: new Date(), updatedAt: new Date() })
+    .where(eq(settlements.id, settlementId));
+
+  await markExpenseSharesPaid(
+    settlement.fromUserId,
+    settlement.toUserId,
+    settlement.groupId,
+    Number(settlement.amount)
+  );
+
+  const [confirmingUser] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  await notifyUsers(
+    [settlement.fromUserId],
+    settlement.groupId,
+    "payment_confirmed",
+    "Payment Confirmed",
+    `${confirmingUser?.name ?? "The recipient"} has confirmed receipt of your payment of ₹${Number(settlement.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}.`,
+    { data: { settlementId }, url: "/settlements" }
+  );
+
+  await db.insert(auditLogs).values({
+    groupId: settlement.groupId,
+    userId,
+    action: "settlement.payment_confirmed",
+    resource: "settlement",
+    resourceId: settlementId,
+    after: { status: "completed", confirmedBy: userId },
+  });
+
+  revalidatePath("/settlements");
+  revalidatePath("/expenses");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+export async function rejectPayment(
+  userId: string,
+  settlementId: string,
+  reason?: string
+): Promise<ActionResult<void>> {
+  const [settlement] = await db
+    .select()
+    .from(settlements)
+    .where(eq(settlements.id, settlementId))
+    .limit(1);
+
+  if (!settlement) return { success: false, error: "Settlement not found" };
+  if (settlement.toUserId !== userId)
+    return { success: false, error: "Only the payment receiver can reject" };
+  if (settlement.status !== "awaiting_confirmation")
+    return { success: false, error: "This payment is not awaiting confirmation" };
+
+  await db
+    .update(settlements)
+    .set({
+      status: "pending",
+      rejectedBy: userId,
+      rejectedAt: new Date(),
+      rejectionReason: reason ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(settlements.id, settlementId));
+
+  const [rejectingUser] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const reasonText = reason ? ` Reason: ${reason}` : " Please review and resubmit if necessary.";
+
+  await notifyUsers(
+    [settlement.fromUserId],
+    settlement.groupId,
+    "payment_rejected",
+    "Payment Rejected",
+    `${rejectingUser?.name ?? "The recipient"} has rejected your payment of ₹${Number(settlement.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}.${reasonText}`,
+    { data: { settlementId }, url: "/settlements" }
+  );
+
+  await db.insert(auditLogs).values({
+    groupId: settlement.groupId,
+    userId,
+    action: "settlement.payment_rejected",
+    resource: "settlement",
+    resourceId: settlementId,
+    after: { status: "pending", rejectedBy: userId, rejectionReason: reason ?? null },
+  });
+
+  revalidatePath("/settlements");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+export async function getAwaitingConfirmations(
+  groupId: string,
+  userId: string
+): Promise<AwaitingConfirmationItem[]> {
+  const rows = await db
+    .select({
+      id: settlements.id,
+      amount: settlements.amount,
+      paymentMethod: settlements.paymentMethod,
+      paymentReference: settlements.paymentReference,
+      note: settlements.note,
+      submittedAt: settlements.submittedAt,
+      fromUserId: settlements.fromUserId,
+      fromUserName: users.name,
+    })
+    .from(settlements)
+    .innerJoin(users, eq(users.id, settlements.fromUserId))
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.toUserId, userId),
+        eq(settlements.status, "awaiting_confirmation")
+      )
+    )
+    .orderBy(asc(settlements.submittedAt));
+
+  return rows.map((r) => ({
+    id: r.id,
+    amount: Number(r.amount),
+    paymentMethod: r.paymentMethod,
+    paymentReference: r.paymentReference,
+    note: r.note,
+    submittedAt: r.submittedAt,
+    fromUserId: r.fromUserId,
+    fromUserName: r.fromUserName ?? "Unknown",
+  }));
+}
+
+export async function getAwaitingConfirmationCount(
+  groupId: string,
+  userId: string
+): Promise<number> {
+  const [{ total }] = await db
+    .select({ total: count() })
+    .from(settlements)
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.toUserId, userId),
+        eq(settlements.status, "awaiting_confirmation")
+      )
+    );
+  return total;
+}
+
+export async function getSettlementsAwaitingReminderSend(): Promise<
+  Array<{
+    id: string;
+    toUserId: string;
+    groupId: string;
+    amount: string;
+    fromUserName: string;
+  }>
+> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  return db
+    .select({
+      id: settlements.id,
+      toUserId: settlements.toUserId,
+      groupId: settlements.groupId,
+      amount: settlements.amount,
+      fromUserName: users.name,
+    })
+    .from(settlements)
+    .innerJoin(users, eq(users.id, settlements.fromUserId))
+    .where(
+      and(
+        eq(settlements.status, "awaiting_confirmation"),
+        lt(settlements.submittedAt, cutoff)
+      )
+    );
+}
+
+async function markExpenseSharesPaid(
+  fromUserId: string,
+  toUserId: string,
+  groupId: string,
+  amount: number
+): Promise<void> {
   const unpaidShares = await db
     .select({
       id: expenseParticipants.id,
@@ -264,7 +522,7 @@ export async function recordSettlement(
     .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
     .where(
       and(
-        eq(expenseParticipants.userId, userId),
+        eq(expenseParticipants.userId, fromUserId),
         eq(expenseParticipants.isPaid, false),
         eq(expenses.paidById, toUserId),
         eq(expenses.groupId, groupId)
@@ -286,50 +544,29 @@ export async function recordSettlement(
     }
   }
 
-  if (toMarkPaid.length > 0) {
-    await db
-      .update(expenseParticipants)
-      .set({ isPaid: true })
-      .where(inArray(expenseParticipants.id, toMarkPaid));
+  if (toMarkPaid.length === 0) return;
 
-    for (const expenseId of affectedExpenseIds) {
-      const [unpaid] = await db
-        .select({ count: count() })
-        .from(expenseParticipants)
-        .where(
-          and(
-            eq(expenseParticipants.expenseId, expenseId),
-            eq(expenseParticipants.isPaid, false)
-          )
-        );
+  await db
+    .update(expenseParticipants)
+    .set({ isPaid: true })
+    .where(inArray(expenseParticipants.id, toMarkPaid));
 
-      if (!unpaid || unpaid.count === 0) {
-        await db
-          .update(expenses)
-          .set({ isSettled: true })
-          .where(eq(expenses.id, expenseId));
-      }
+  for (const expenseId of affectedExpenseIds) {
+    const [unpaid] = await db
+      .select({ count: count() })
+      .from(expenseParticipants)
+      .where(
+        and(
+          eq(expenseParticipants.expenseId, expenseId),
+          eq(expenseParticipants.isPaid, false)
+        )
+      );
+
+    if (!unpaid || unpaid.count === 0) {
+      await db
+        .update(expenses)
+        .set({ isSettled: true })
+        .where(eq(expenses.id, expenseId));
     }
   }
-
-  const [fromUser] = await db
-    .select({ name: users.name })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
-
-  await notifyUsers(
-    [toUserId],
-    groupId,
-    "settlement_completed",
-    "Payment received",
-    `${fromUser?.name ?? "Someone"} paid you ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`,
-    { data: { settlementId: settlement.id }, url: "/settlements" }
-  );
-
-  revalidatePath("/settlements");
-  revalidatePath("/expenses");
-  revalidatePath("/dashboard");
-
-  return { success: true, data: { settlementId: settlement.id } };
 }

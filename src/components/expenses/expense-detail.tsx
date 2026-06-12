@@ -3,8 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { toast } from "sonner";
-import { ArrowLeft, Loader2, Receipt } from "lucide-react";
+import { ArrowLeft, ArrowRight, Loader2, Receipt } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -19,29 +18,11 @@ export function ExpenseDetail() {
   const router = useRouter();
   const [expense, setExpense] = useState<ExpenseDetailData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [settling, setSettling] = useState(false);
-
   useEffect(() => {
     fetch(`/api/expenses/${id}`)
       .then((r) => r.json())
       .then((d) => { setExpense(d); setLoading(false); });
   }, [id]);
-
-  async function handleSettle() {
-    if (!session?.user?.id || !expense) return;
-    setSettling(true);
-    try {
-      const result = await settleShare(session.user.id, expense.id);
-      if (!result.success) { toast.error(result.error); return; }
-      toast.success("Your share marked as paid!");
-      const res = await fetch(`/api/expenses/${id}`);
-      setExpense(await res.json());
-    } catch {
-      toast.error("Failed to settle share.");
-    } finally {
-      setSettling(false);
-    }
-  }
 
   if (loading) {
     return (
@@ -183,9 +164,9 @@ export function ExpenseDetail() {
                 owed to {expense.paidByName}
               </p>
             </div>
-            <Button onClick={handleSettle} disabled={settling}>
-              {settling && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Mark as paid
+            <Button onClick={() => router.push(`/settlements?expenseId=${expense.id}`)}>
+              Settle the expense
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </CardContent>
         </Card>
