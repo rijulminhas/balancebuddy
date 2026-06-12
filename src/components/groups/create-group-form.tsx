@@ -77,7 +77,7 @@ export function CreateGroupForm() {
                   <FormItem>
                     <FormLabel>Group name *</FormLabel>
                     <FormControl>
-                      <Input placeholder="Green Valley Group" {...field} />
+                      <Input placeholder="Goa Trip or Green Valley Group" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -1,4 +1,3 @@
-import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -117,7 +116,6 @@ const pwaStepsDesktop = [
 
 export default async function LandingPage() {
   const session = await getSession();
-  if (session) redirect("/dashboard");
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -146,12 +144,35 @@ export default async function LandingPage() {
             <a href="#pwa" className="hover:text-foreground transition-colors">Install App</a>
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button size="sm" asChild>
-              <Link href="/register">Get started</Link>
-            </Button>
+            {session ? (
+              <Link
+                href="/dashboard"
+                className="flex items-center gap-2 rounded-xl border bg-background px-3 py-1.5 hover:bg-muted transition-colors"
+              >
+                {session.user.image ? (
+                  <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
+                    <Image src={session.user.image} alt={session.user.name ?? "User"} fill sizes="24px" className="object-cover" />
+                  </div>
+                ) : (
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                    {session.user.name?.[0]?.toUpperCase() ?? "?"}
+                  </div>
+                )}
+                <div className="hidden sm:block text-left">
+                  <p className="text-xs font-semibold leading-none">{session.user.name}</p>
+                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">{session.user.email}</p>
+                </div>
+              </Link>
+            ) : (
+              <>
+                <Button variant="ghost" size="sm" asChild>
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button size="sm" asChild>
+                  <Link href="/register">Get started</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
@@ -173,17 +194,19 @@ export default async function LandingPage() {
           <p className="mx-auto mt-5 max-w-xl text-base text-muted-foreground sm:text-lg">
             BalanceBuddy is a complete shared-living OS — manage expenses, chores, settlements, reminders, and shopping for flatmates, travel groups, PGs, and co-living spaces.
           </p>
-          <div className="mt-8 flex flex-wrap justify-center gap-3">
-            <Button size="lg" asChild>
-              <Link href="/register">
-                Create your group free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-          </div>
+          {!session && (
+            <div className="mt-8 flex flex-wrap justify-center gap-3">
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  Create your group free
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/login">Sign in</Link>
+              </Button>
+            </div>
+          )}
           <div className="mt-6 flex flex-wrap justify-center gap-x-6 gap-y-2 text-xs text-muted-foreground">
             <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> Free to use</span>
             <span className="flex items-center gap-1"><CheckCircle2 className="h-3 w-3 text-emerald-500" /> No credit card</span>
@@ -950,30 +973,32 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Final CTA ──────────────────────────────────────────────────── */}
-      <section className="px-4 py-24 text-center">
-        <div className="mx-auto max-w-2xl">
-          <div className="mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
-            <Star className="h-3 w-3 text-amber-400" /> Built for real shared living
+      {!session && (
+        <section className="px-4 py-24 text-center">
+          <div className="mx-auto max-w-2xl">
+            <div className="mb-3 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+              <Star className="h-3 w-3 text-amber-400" /> Built for real shared living
+            </div>
+            <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
+              Ready to stop stressing about shared expenses?
+            </h2>
+            <p className="mb-8 text-sm text-muted-foreground sm:text-base">
+              Free to use. Create a group in under a minute, invite your flatmates, and let BalanceBuddy handle the rest.
+            </p>
+            <div className="flex flex-wrap justify-center gap-3">
+              <Button size="lg" asChild>
+                <Link href="/register">
+                  Get started free
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+              <Button variant="outline" size="lg" asChild>
+                <Link href="/login">Sign in</Link>
+              </Button>
+            </div>
           </div>
-          <h2 className="mb-4 text-3xl font-semibold tracking-tight sm:text-4xl">
-            Ready to stop stressing about shared expenses?
-          </h2>
-          <p className="mb-8 text-sm text-muted-foreground sm:text-base">
-            Free to use. Create a group in under a minute, invite your flatmates, and let BalanceBuddy handle the rest.
-          </p>
-          <div className="flex flex-wrap justify-center gap-3">
-            <Button size="lg" asChild>
-              <Link href="/register">
-                Get started free
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-            <Button variant="outline" size="lg" asChild>
-              <Link href="/login">Sign in</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* ── Footer ─────────────────────────────────────────────────────── */}
       <footer className="border-t py-8 px-4">

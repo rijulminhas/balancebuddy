@@ -84,7 +84,7 @@ function NavContent({
         )}
       >
         <Link
-          href="/dashboard"
+          href="/"
           onClick={onNavClick}
           className="flex items-center gap-3"
         >

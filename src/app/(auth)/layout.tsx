@@ -1,6 +1,7 @@
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getSession } from "@/lib/session";
+import Link from "next/link";
 
 export default async function AuthLayout({
   children,
@@ -18,7 +19,7 @@ export default async function AuthLayout({
         <div className="absolute -bottom-40 -right-20 h-80 w-80 rounded-full bg-primary/10 blur-3xl" />
 
         {/* Logo */}
-        <div className="relative flex items-center gap-3 z-10">
+        <Link href="/" className="relative flex items-center gap-3 z-10">
           {/* <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-black shadow-lg shadow-primary/40">
             BB
           </div> */}
@@ -35,7 +36,7 @@ export default async function AuthLayout({
           <span className="text-xl font-black tracking-tight text-sidebar-foreground">
             BalanceBuddy
           </span>
-        </div>
+        </Link>
 
         {/* Hero text */}
         <div className="relative z-10 space-y-6">
