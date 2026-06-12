@@ -67,25 +67,26 @@ export async function GroupsPage() {
     );
   }
 
-  const [group] = await db
-    .select()
-    .from(groups)
-    .where(eq(groups.id, membership.groupId))
-    .limit(1);
-
-  const members = await db
-    .select({
-      id: groupMembers.id,
-      userId: groupMembers.userId,
-      role: groupMembers.role,
-      joinedAt: groupMembers.joinedAt,
-      name: users.name,
-      email: users.email,
-      image: users.image,
-    })
-    .from(groupMembers)
-    .innerJoin(users, eq(groupMembers.userId, users.id))
-    .where(and(eq(groupMembers.groupId, membership.groupId), eq(groupMembers.status, "active")));
+  const [[group], members] = await Promise.all([
+    db
+      .select()
+      .from(groups)
+      .where(eq(groups.id, membership.groupId))
+      .limit(1),
+    db
+      .select({
+        id: groupMembers.id,
+        userId: groupMembers.userId,
+        role: groupMembers.role,
+        joinedAt: groupMembers.joinedAt,
+        name: users.name,
+        email: users.email,
+        image: users.image,
+      })
+      .from(groupMembers)
+      .innerJoin(users, eq(groupMembers.userId, users.id))
+      .where(and(eq(groupMembers.groupId, membership.groupId), eq(groupMembers.status, "active"))),
+  ]);
 
   const isOwner = membership.role === "owner";
 

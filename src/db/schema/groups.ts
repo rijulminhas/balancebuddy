@@ -7,6 +7,7 @@ import {
   pgEnum,
   integer,
   uniqueIndex,
+  index,
   boolean,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
@@ -53,7 +54,10 @@ export const groupMembers = pgTable("group_members", {
   removedReason: text("removed_reason"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
-}, (t) => [uniqueIndex("group_members_group_user_uidx").on(t.groupId, t.userId)]);
+}, (t) => [
+  uniqueIndex("group_members_group_user_uidx").on(t.groupId, t.userId),
+  index("group_members_user_status_idx").on(t.userId, t.status),
+]);
 
 export const groupHistory = pgTable("group_history", {
   id: uuid("id").primaryKey().defaultRandom(),

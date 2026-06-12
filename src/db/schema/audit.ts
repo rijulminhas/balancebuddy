@@ -5,6 +5,7 @@ import {
   text,
   timestamp,
   jsonb,
+  index,
 } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { groups } from "./groups";
@@ -21,7 +22,9 @@ export const auditLogs = pgTable("audit_logs", {
   ipAddress: text("ip_address"),
   userAgent: text("user_agent"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
-});
+}, (t) => [
+  index("audit_logs_group_created_idx").on(t.groupId, t.createdAt),
+]);
 
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
