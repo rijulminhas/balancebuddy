@@ -4,6 +4,8 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { Providers } from "@/components/providers";
 import { ServiceWorkerRegister } from "@/components/shared/service-worker-register";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const dmSans = DM_Sans({
   variable: "--font-sans",
@@ -33,18 +35,19 @@ export const viewport: Viewport = {
   maximumScale: 5,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getServerSession(authOptions);
   return (
     <html
       lang="en"
       className={`${dmSans.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
-        <Providers>
+        <Providers session={session}>
           <ServiceWorkerRegister />
           {children}
           <Toaster position="top-right" richColors />

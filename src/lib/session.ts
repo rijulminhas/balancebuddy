@@ -3,7 +3,9 @@ import { decode } from "next-auth/jwt";
 
 // NextAuth v4 encode/decode uses salt="" by default (verified from source).
 // We replicate getToken's exact decode call to guarantee consistency.
-const useSecureCookies = process.env.NEXTAUTH_URL?.startsWith("https://") ?? false;
+// Also treat any Vercel deployment as secure (VERCEL env var is always set by Vercel).
+const useSecureCookies =
+  process.env.NEXTAUTH_URL?.startsWith("https://") || !!process.env.VERCEL;
 const SESSION_COOKIE = useSecureCookies
   ? "__Secure-next-auth.session-token"
   : "next-auth.session-token";
