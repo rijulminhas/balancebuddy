@@ -21,6 +21,7 @@ import {
   Sparkles,
   Clock,
   AlertCircle,
+  Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { computeGroupBalances, getAwaitingConfirmations } from "@/actions/settlements";
@@ -123,12 +124,20 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
             Smart debt optimization — minimize transactions
           </p>
         </div>
-        {awaitingConfirmations.length > 0 && (
-          <Badge className="rounded-xl px-3 py-1 text-xs font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30">
-            <Clock className="mr-1.5 h-3.5 w-3.5" />
-            Awaiting Confirmation ({awaitingConfirmations.length})
-          </Badge>
-        )}
+        <div className="flex items-center gap-2">
+          {awaitingConfirmations.length > 0 && (
+            <Badge className="rounded-xl px-3 py-1 text-xs font-bold bg-amber-500/15 text-amber-600 border border-amber-500/30">
+              <Clock className="mr-1.5 h-3.5 w-3.5" />
+              Awaiting Confirmation ({awaitingConfirmations.length})
+            </Badge>
+          )}
+          <SettleDialog groupId={groupId} members={membersForDialog}>
+            <Button size="sm" className="rounded-xl gap-1.5">
+              <Plus className="h-3.5 w-3.5" />
+              Record Payment
+            </Button>
+          </SettleDialog>
+        </div>
       </div>
 
       {/* ── Awaiting Your Confirmation ─────────────────────────────────── */}
