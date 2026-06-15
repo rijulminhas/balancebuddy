@@ -131,12 +131,12 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
               Awaiting Confirmation ({awaitingConfirmations.length})
             </Badge>
           )}
-          <SettleDialog groupId={groupId} members={membersForDialog}>
+          {/* <SettleDialog groupId={groupId} members={membersForDialog}>
             <Button size="sm" className="rounded-xl gap-1.5">
               <Plus className="h-3.5 w-3.5" />
               Record Payment
             </Button>
-          </SettleDialog>
+          </SettleDialog> */}
         </div>
       </div>
 
