@@ -389,7 +389,7 @@ export async function rejectPayment(
   await db
     .update(settlements)
     .set({
-      status: "pending",
+      status: "rejected",
       rejectedBy: userId,
       rejectedAt: new Date(),
       rejectionReason: reason ?? null,
@@ -420,7 +420,7 @@ export async function rejectPayment(
     action: "settlement.payment_rejected",
     resource: "settlement",
     resourceId: settlementId,
-    after: { status: "pending", rejectedBy: userId, rejectionReason: reason ?? null },
+    after: { status: "rejected", rejectedBy: userId, rejectionReason: reason ?? null },
   });
 
   revalidatePath("/settlements");

@@ -15,6 +15,7 @@ export const settlementStatusEnum = pgEnum("settlement_status", [
   "awaiting_confirmation",
   "completed",
   "cancelled",
+  "rejected",
 ]);
 
 export const settlements = pgTable("settlements", {

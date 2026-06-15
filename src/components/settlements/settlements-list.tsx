@@ -40,6 +40,7 @@ const STATUS_BADGE: Record<
   awaiting_confirmation: { label: "Awaiting Confirmation", variant: "warning" },
   pending: { label: "Pending", variant: "secondary" },
   cancelled: { label: "Cancelled", variant: "destructive" },
+  rejected: { label: "Rejected", variant: "destructive" },
 };
 
 export async function SettlementsList({ historyPage = 1 }: { historyPage?: number }) {
