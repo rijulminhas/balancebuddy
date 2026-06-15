@@ -12,7 +12,7 @@ export function NotificationBell() {
     <Button
       variant="ghost"
       size="icon"
-      className="relative rounded-xl h-9 w-9 text-muted-foreground hover:text-foreground hover:bg-accent"
+      className="relative rounded-xl h-13 w-13 text-muted-foreground hover:text-foreground hover:bg-accent"
       asChild
     >
       <Link href="/notifications" aria-label="Notifications">

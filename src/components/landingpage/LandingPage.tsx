@@ -150,9 +150,11 @@ export default async function LandingPage() {
                 className="flex items-center gap-2 rounded-xl border bg-background px-3 py-1.5 hover:bg-muted transition-colors"
               >
                 {session.user.image ? (
-                  <div className="relative h-6 w-6 shrink-0 overflow-hidden rounded-full">
-                    <Image src={session.user.image} alt={session.user.name ?? "User"} fill sizes="24px" className="object-cover" />
-                  </div>
+                  <img
+                    src={session.user.image}
+                    alt={session.user.name ?? "User"}
+                    className="h-6 w-6 shrink-0 rounded-full object-cover"
+                  />
                 ) : (
                   <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
                     {session.user.name?.[0]?.toUpperCase() ?? "?"}

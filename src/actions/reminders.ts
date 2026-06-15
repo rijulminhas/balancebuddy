@@ -36,7 +36,7 @@ function extractFields(data: ReminderInput) {
     dayOfWeek: dayOfWeek ?? null,
     specificDate: specificDateObj,
     reminderDaysBefore: daysBefore,
-    amount: amount ?? null,
+    amount: (amount !== undefined && amount !== null && amount.trim() !== "") ? amount : null,
     nextNotifyAt: nextNotifyAt ?? undefined,
     ...rest,
   };
