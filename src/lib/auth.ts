@@ -87,6 +87,11 @@ export const authOptions: NextAuthOptions = {
       if (token && session.user) {
         session.user.id = token.id as string;
         session.user.emailVerified = token.emailVerified as Date | null;
+        // Explicitly propagate token.picture so server-side getServerSession()
+        // callers (e.g. the landing page) always receive the correct image URL.
+        // NextAuth's automatic token.picture → session.user.image mapping is
+        // unreliable when the session callback is overridden.
+        session.user.image = (token.picture as string | null) ?? null;
       }
       return session;
     },

@@ -1,8 +1,9 @@
 "use client";
 
-import { signOut } from "next-auth/react";
+import { signOut, useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
-import { LogOut, Menu, Settings, User } from "lucide-react";
+import { LogOut, Menu, RefreshCw, User } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +27,13 @@ function getInitials(name?: string | null) {
 }
 
 export function Header({ session, onMenuClick }: HeaderProps) {
-  const { user } = session;
+  const { data: clientSession } = useSession();
+  const router = useRouter();
+
+  // Prefer the live client session so the avatar/name update immediately after
+  // the user saves their profile (which calls useSession().update()) without
+  // requiring a full page reload.
+  const user = clientSession?.user ?? session.user;
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-sidebar-border bg-sidebar px-4 sm:px-6 shrink-0">
@@ -42,6 +49,13 @@ export function Header({ session, onMenuClick }: HeaderProps) {
 
       {/* Right */}
       <div className="flex items-center gap-2">
+        <button
+          onClick={() => router.refresh()}
+          className="flex items-center cursor-pointer justify-center rounded-xl p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          aria-label="Refresh page"
+        >
+          <RefreshCw className="h-4 w-4" />
+        </button>
         <NotificationBell />
 
         <DropdownMenu>
@@ -53,7 +67,7 @@ export function Header({ session, onMenuClick }: HeaderProps) {
                   {getInitials(user.name)}
                 </AvatarFallback>
               </Avatar>
-              <span className="hidden sm:block text-sm font-semibold max-w-[120px] truncate">
+              <span className="hidden sm:block text-sm font-semibold max-w-30 truncate">
                 {user.name}
               </span>
             </button>
