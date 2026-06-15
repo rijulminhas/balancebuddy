@@ -10,7 +10,7 @@ import {
   users,
   auditLogs,
 } from "@/db/schema";
-import { eq, and, asc, inArray, count, lt } from "drizzle-orm";
+import { eq, and, asc, desc, inArray, count, lt } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
@@ -511,6 +511,68 @@ export async function getSettlementsAwaitingReminderSend(): Promise<
         lt(settlements.submittedAt, cutoff)
       )
     );
+}
+
+export async function checkExistingSettlement(
+  fromUserId: string,
+  toUserId: string,
+  groupId: string
+): Promise<{ status: "awaiting_confirmation" | "completed" | "rejected" | null }> {
+  // 1. Pending duplicate check — always block a second in-flight submission.
+  const [awaiting] = await db
+    .select({ id: settlements.id })
+    .from(settlements)
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.fromUserId, fromUserId),
+        eq(settlements.toUserId, toUserId),
+        eq(settlements.status, "awaiting_confirmation")
+      )
+    )
+    .limit(1);
+
+  if (awaiting) return { status: "awaiting_confirmation" };
+
+  // 2. Most recent terminal settlement for this pair.
+  const [latest] = await db
+    .select({ status: settlements.status })
+    .from(settlements)
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        eq(settlements.fromUserId, fromUserId),
+        eq(settlements.toUserId, toUserId),
+        inArray(settlements.status, ["completed", "rejected"])
+      )
+    )
+    .orderBy(desc(settlements.createdAt))
+    .limit(1);
+
+  if (!latest) return { status: null };
+
+  // Rejected payments can always be resubmitted.
+  if (latest.status === "rejected") return { status: "rejected" };
+
+  // 3. For completed: only block when there is no remaining unpaid debt.
+  //    If a new expense was added after the last settlement, unpaid shares
+  //    will exist and the old "completed" record must not prevent a new payment.
+  const [unpaidShare] = await db
+    .select({ id: expenseParticipants.id })
+    .from(expenseParticipants)
+    .innerJoin(expenses, eq(expenseParticipants.expenseId, expenses.id))
+    .where(
+      and(
+        eq(expenseParticipants.userId, fromUserId),
+        eq(expenseParticipants.isPaid, false),
+        eq(expenses.paidById, toUserId),
+        eq(expenses.groupId, groupId)
+      )
+    )
+    .limit(1);
+
+  // Unpaid shares mean there is fresh debt → let the dialog open.
+  return { status: unpaidShare ? null : "completed" };
 }
 
 async function markExpenseSharesPaid(

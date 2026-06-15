@@ -11,7 +11,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,7 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { recordSettlement } from "@/actions/settlements";
+import { checkExistingSettlement, recordSettlement } from "@/actions/settlements";
 import { useSession } from "next-auth/react";
 
 interface Member {
@@ -59,6 +58,7 @@ export function SettleDialog({
 }: SettleDialogProps) {
   const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   const {
     register,
@@ -78,6 +78,50 @@ export function SettleDialog({
 
   const selectedToUserId = watch("toUserId");
 
+  async function handleTriggerClick(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (!session?.user?.id || !defaultToUserId) {
+      setOpen(true);
+      return;
+    }
+
+    setIsChecking(true);
+    try {
+      const { status } = await checkExistingSettlement(
+        session.user.id,
+        defaultToUserId,
+        groupId
+      );
+
+      if (status === "awaiting_confirmation") {
+        toast.error(
+          "A payment is already awaiting confirmation. Please wait for the recipient to respond."
+        );
+        return;
+      }
+
+      if (status === "completed") {
+        toast.info(
+          "Your payment is already confirmed by the recipient. Please refresh the page to get updated data."
+        );
+        return;
+      }
+
+      if (status === "rejected") {
+        toast.warning(
+          "Your previous payment was rejected by the recipient. You can submit a new payment request."
+        );
+        // Fall through — open the dialog so the user can resubmit.
+      }
+
+      setOpen(true);
+    } finally {
+      setIsChecking(false);
+    }
+  }
+
   async function onSubmit(data: FormData) {
     if (!session?.user?.id) return;
     const result = await recordSettlement(session.user.id, {
@@ -94,108 +138,115 @@ export function SettleDialog({
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
-      <DialogContent className="sm:max-w-md rounded-2xl">
-        <DialogHeader>
-          <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
-        </DialogHeader>
+    <>
+      <span
+        onClick={handleTriggerClick}
+        style={{ display: "contents", cursor: isChecking ? "wait" : "inherit" }}
+      >
+        {children}
+      </span>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">Record Payment</DialogTitle>
+          </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Paid to</Label>
-            <Select
-              value={selectedToUserId}
-              onValueChange={(v) => setValue("toUserId", v, { shouldValidate: true })}
-            >
-              <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Select person" />
-              </SelectTrigger>
-              <SelectContent>
-                {members.map((m) => (
-                  <SelectItem key={m.id} value={m.id}>
-                    {m.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            {errors.toUserId && (
-              <p className="text-xs text-destructive">{errors.toUserId.message}</p>
-            )}
-          </div>
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Paid to</Label>
+              <Select
+                value={selectedToUserId}
+                onValueChange={(v) => setValue("toUserId", v, { shouldValidate: true })}
+              >
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select person" />
+                </SelectTrigger>
+                <SelectContent>
+                  {members.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.toUserId && (
+                <p className="text-xs text-destructive">{errors.toUserId.message}</p>
+              )}
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Amount (₹)</Label>
-            {defaultAmount != null ? (
-              <div className="flex items-center h-9 px-3 rounded-xl border border-input bg-muted text-sm font-semibold text-foreground select-none">
-                ₹{defaultAmount.toFixed(2)}
-              </div>
-            ) : (
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Amount (₹)</Label>
+              {defaultAmount != null ? (
+                <div className="flex items-center h-9 px-3 rounded-xl border border-input bg-muted text-sm font-semibold text-foreground select-none">
+                  ₹{defaultAmount.toFixed(2)}
+                </div>
+              ) : (
+                <Input
+                  {...register("amount", { valueAsNumber: true })}
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  placeholder="0.00"
+                  className="rounded-xl"
+                />
+              )}
+              {errors.amount && (
+                <p className="text-xs text-destructive">{errors.amount.message}</p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Payment method</Label>
+              <Select onValueChange={(v) => setValue("method", v)}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue placeholder="Select method (optional)" />
+                </SelectTrigger>
+                <SelectContent>
+                  {["Cash", "UPI", "Bank Transfer", "Other"].map((m) => (
+                    <SelectItem key={m} value={m.toLowerCase().replace(" ", "_")}>
+                      {m}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Reference / UTR (optional)</Label>
               <Input
-                {...register("amount", { valueAsNumber: true })}
-                type="number"
-                step="0.01"
-                min="0.01"
-                placeholder="0.00"
+                {...register("reference")}
+                placeholder="e.g. UPI transaction ID"
                 className="rounded-xl"
               />
-            )}
-            {errors.amount && (
-              <p className="text-xs text-destructive">{errors.amount.message}</p>
-            )}
-          </div>
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Payment method</Label>
-            <Select onValueChange={(v) => setValue("method", v)}>
-              <SelectTrigger className="rounded-xl">
-                <SelectValue placeholder="Select method (optional)" />
-              </SelectTrigger>
-              <SelectContent>
-                {["Cash", "UPI", "Bank Transfer", "Other"].map((m) => (
-                  <SelectItem key={m} value={m.toLowerCase().replace(" ", "_")}>
-                    {m}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium">Note (optional)</Label>
+              <Textarea
+                {...register("note")}
+                placeholder="Add a note…"
+                className="rounded-xl resize-none"
+                rows={2}
+              />
+            </div>
 
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Reference / UTR (optional)</Label>
-            <Input
-              {...register("reference")}
-              placeholder="e.g. UPI transaction ID"
-              className="rounded-xl"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <Label className="text-sm font-medium">Note (optional)</Label>
-            <Textarea
-              {...register("note")}
-              placeholder="Add a note…"
-              className="rounded-xl resize-none"
-              rows={2}
-            />
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <Button
-              type="button"
-              variant="outline"
-              className="rounded-xl"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button type="submit" className="rounded-xl" disabled={isSubmitting}>
-              {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Record Payment
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="rounded-xl"
+                onClick={() => setOpen(false)}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" className="rounded-xl" disabled={isSubmitting}>
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Record Payment
+              </Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
