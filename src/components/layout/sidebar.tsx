@@ -91,21 +91,21 @@ function NavContent({
           {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
             BB
           </div> */}
-          <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+          <div className="relative h-45 w-45 shrink-0 overflow-hidden rounded-xl">
             <Image
-              src="/images/balance.jpg"
+              src="/images/balancebuddylogo.png"
               alt="BalanceBuddy Logo"
               fill
-              sizes="36px"
+              sizes="180px"
               className="object-contain"
               priority
             />
           </div>
-          {!collapsed && (
+          {/* {!collapsed && (
             <span className="text-base font-black tracking-tight text-sidebar-foreground">
               BalanceBuddy
             </span>
-          )}
+          )} */}
         </Link>
       </div>
 
