@@ -1,8 +1,23 @@
 "use client";
 
-import { signOut, useSession } from "next-auth/react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useSession, signOut } from "next-auth/react";
 import type { Session } from "next-auth";
-import { LogOut, Menu, RefreshCw, User, Wallet, ArrowLeftRight } from "lucide-react";
+import {
+  Menu,
+  RefreshCw,
+  ArrowLeftRight,
+  LogOut,
+  User,
+  LayoutDashboard,
+} from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,16 +27,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import Link from "next/link";
 import { NotificationBell } from "@/components/shared/notification-bell";
 
-interface HeaderProps {
+interface PfHeaderProps {
   session: Session;
   onMenuClick?: () => void;
 }
@@ -31,17 +39,15 @@ function getInitials(name?: string | null) {
   return name.split(" ").slice(0, 2).map((n) => n[0]).join("").toUpperCase();
 }
 
-export function Header({ session, onMenuClick }: HeaderProps) {
+export function PfHeader({ session, onMenuClick }: PfHeaderProps) {
   const { data: clientSession } = useSession();
-  // Prefer the live client session so the avatar/name update immediately after
-  // the user saves their profile (which calls useSession().update()) without
-  // requiring a full page reload.
   const user = clientSession?.user ?? session.user;
 
   return (
     <header className="flex h-16 items-center justify-between border-b border-sidebar-border bg-sidebar px-4 sm:px-6 shrink-0">
-      {/* Left — hamburger (mobile) + Personal Finance switcher (desktop) */}
+      {/* Left */}
       <div className="flex items-center gap-3">
+        {/* Mobile hamburger */}
         <button
           onClick={onMenuClick}
           className="flex md:hidden items-center justify-center rounded-xl p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
@@ -50,21 +56,22 @@ export function Header({ session, onMenuClick }: HeaderProps) {
           <Menu className="h-5 w-5" />
         </button>
 
+        {/* Switch to Group Dashboard button */}
         <TooltipProvider delayDuration={300}>
           <Tooltip>
             <TooltipTrigger asChild>
               <Link
-                href="/personal-finance"
+                href="/dashboard"
                 className="flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/60 px-3 py-1.5 text-sm font-semibold text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150 group"
               >
-                <Wallet className="h-4 w-4 text-primary" />
-                <span className="hidden sm:inline">Personal Finance</span>
-                <span className="sm:hidden">Finance</span>
-                <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
+                <ArrowLeftRight className="h-4 w-4 text-primary group-hover:rotate-180 transition-transform duration-300" />
+                <span className="hidden sm:inline">Switch to Group</span>
+                <span className="sm:hidden">Group</span>
+                <LayoutDashboard className="h-3.5 w-3.5 text-muted-foreground" />
               </Link>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="font-semibold">
-              Go to Personal Finance Dashboard
+              Go to Group Expense Dashboard
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
@@ -79,6 +86,7 @@ export function Header({ session, onMenuClick }: HeaderProps) {
         >
           <RefreshCw className="h-4 w-4" />
         </button>
+
         <NotificationBell />
 
         <DropdownMenu>
@@ -109,11 +117,6 @@ export function Header({ session, onMenuClick }: HeaderProps) {
                 <User className="mr-2 h-4 w-4" />Profile
               </Link>
             </DropdownMenuItem>
-            {/* <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
-              <Link href="/settings">
-                <Settings className="mr-2 h-4 w-4" />Settings
-              </Link>
-            </DropdownMenuItem> */}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="rounded-lg font-semibold text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"

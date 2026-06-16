@@ -48,7 +48,11 @@ export default function proxy(req: NextRequest) {
   // Protected route without session → redirect to login
   if (!hasSession) {
     const loginUrl = new URL("/login", req.url);
-    loginUrl.searchParams.set("callbackUrl", pathname + req.nextUrl.search);
+    // Personal-finance is a secondary module; always boot into the group dashboard
+    const callbackUrl = pathname.startsWith("/personal-finance")
+      ? "/dashboard"
+      : pathname + req.nextUrl.search;
+    loginUrl.searchParams.set("callbackUrl", callbackUrl);
     return NextResponse.redirect(loginUrl);
   }
 

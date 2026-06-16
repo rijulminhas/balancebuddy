@@ -46,21 +46,22 @@ export function computeNextNotifyAt(
       if (!options.specificDate) return null;
       const notify = new Date(options.specificDate);
       notify.setDate(notify.getDate() - reminderDaysBefore);
-      notify.setHours(9, 0, 0, 0);
+      // Midnight UTC so the cron (3:30 AM UTC) catches it on the correct day
+      notify.setHours(0, 0, 0, 0);
       return notify > now ? notify : null;
     }
 
     case "daily": {
       const next = new Date(now);
       next.setDate(next.getDate() + 1);
-      next.setHours(9, 0, 0, 0);
+      next.setHours(0, 0, 0, 0);
       return next;
     }
 
     case "weekly": {
       const targetDow = options.dayOfWeek ?? 1; // default Monday
       const base = new Date(now);
-      base.setHours(9, 0, 0, 0);
+      base.setHours(0, 0, 0, 0);
 
       let daysUntilDue = (targetDow - base.getDay() + 7) % 7;
       if (daysUntilDue === 0) daysUntilDue = 7; // ensure at least 1 week ahead
@@ -81,7 +82,7 @@ export function computeNextNotifyAt(
       const dom = options.dayOfMonth ?? 1;
 
       const buildNotify = (year: number, month: number): Date => {
-        const due = new Date(year, month, dom, 9, 0, 0, 0);
+        const due = new Date(year, month, dom, 0, 0, 0, 0);
         const notify = new Date(due);
         notify.setDate(notify.getDate() - reminderDaysBefore);
         return notify;
@@ -97,7 +98,7 @@ export function computeNextNotifyAt(
       const moy = (options.monthOfYear ?? 1) - 1; // JS months are 0-indexed
 
       const buildNotify = (year: number): Date => {
-        const due = new Date(year, moy, dom, 9, 0, 0, 0);
+        const due = new Date(year, moy, dom, 0, 0, 0, 0);
         const notify = new Date(due);
         notify.setDate(notify.getDate() - reminderDaysBefore);
         return notify;

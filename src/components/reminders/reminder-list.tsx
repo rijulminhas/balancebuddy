@@ -51,13 +51,16 @@ function formatNextNotify(date: Date | null | string | undefined): string {
   if (!date) return "—";
   const d = new Date(date);
   const now = new Date();
-  const msPerDay = 1000 * 60 * 60 * 24;
-  const diff = Math.ceil((d.getTime() - now.getTime()) / msPerDay);
+  // Compare calendar days (strip time) to avoid Math.ceil rounding a
+  // same-day future time up to "1 day" away.
+  const dDay = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const nowDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const diffDays = Math.round((dDay.getTime() - nowDay.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (diff < 0) return "Overdue";
-  if (diff === 0) return "Today at " + d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  if (diff === 1) return "Tomorrow";
-  if (diff < 7) return `In ${diff} days`;
+  if (diffDays < 0) return "Overdue";
+  if (diffDays === 0) return "Today";
+  if (diffDays === 1) return "Tomorrow";
+  if (diffDays < 7) return `In ${diffDays} days`;
   return d.toLocaleDateString([], { day: "numeric", month: "short", year: "numeric" });
 }
 
