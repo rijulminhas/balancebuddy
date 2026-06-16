@@ -1,6 +1,9 @@
+import { getSession } from "@/lib/session";
+import { redirect } from "next/navigation";
 import { NetWorthView } from "@/components/personal-finance/net-worth/net-worth-view";
 
 export default async function NetWorthPage() {
+  if (!(await getSession())) redirect("/login");
   return (
     <div className="space-y-6">
       <div>

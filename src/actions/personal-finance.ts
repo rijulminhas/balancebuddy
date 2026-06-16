@@ -8,7 +8,7 @@ import {
   savingsGoals,
   loans,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, gte, lt, sql } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import type { ActionResult } from "./auth";
@@ -358,6 +358,48 @@ const savingsGoalSchema = z.object({
 
 export type SavingsGoalInput = z.infer<typeof savingsGoalSchema>;
 
+function getRemainingMonths(today: Date, targetDate: Date): number {
+  if (targetDate.getTime() <= today.getTime()) return 0;
+  const y = targetDate.getFullYear() - today.getFullYear();
+  const m = targetDate.getMonth() - today.getMonth();
+  const d = targetDate.getDate() - today.getDate();
+  return Math.max(0, y * 12 + m + (d > 0 ? 1 : 0));
+}
+
+async function getMonthlyIncome(userId: string): Promise<number> {
+  const now = new Date();
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const startOfNextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  const [thisMonthRow] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${personalIncomes.amount}), '0')` })
+    .from(personalIncomes)
+    .where(
+      and(
+        eq(personalIncomes.userId, userId),
+        gte(personalIncomes.date, startOfMonth),
+        lt(personalIncomes.date, startOfNextMonth)
+      )
+    );
+
+  const thisMonth = Number(thisMonthRow?.total ?? 0);
+  if (thisMonth > 0) return thisMonth;
+
+  const [lastMonthRow] = await db
+    .select({ total: sql<string>`COALESCE(SUM(${personalIncomes.amount}), '0')` })
+    .from(personalIncomes)
+    .where(
+      and(
+        eq(personalIncomes.userId, userId),
+        gte(personalIncomes.date, startOfLastMonth),
+        lt(personalIncomes.date, startOfMonth)
+      )
+    );
+
+  return Number(lastMonthRow?.total ?? 0);
+}
+
 export async function createSavingsGoal(
   userId: string,
   input: SavingsGoalInput
@@ -367,6 +409,27 @@ export async function createSavingsGoal(
 
   const { goalName, targetAmount, currentAmount, targetDate, notes } =
     parsed.data;
+
+  // Affordability check: block if required monthly savings exceeds monthly income
+  if (targetDate) {
+    const today = new Date();
+    const td = new Date(targetDate);
+    const remainingMonths = getRemainingMonths(today, td);
+
+    if (remainingMonths > 0) {
+      const remaining = Math.max(0, targetAmount - (currentAmount ?? 0));
+      const requiredMonthly = remaining / remainingMonths;
+      const monthlyIncome = await getMonthlyIncome(userId);
+
+      if (monthlyIncome > 0 && requiredMonthly > monthlyIncome) {
+        return {
+          success: false,
+          error:
+            "Required monthly savings exceeds your monthly income. Please reduce the target amount or extend the target date.",
+        };
+      }
+    }
+  }
 
   const [record] = await db
     .insert(savingsGoals)

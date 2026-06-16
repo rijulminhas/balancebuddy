@@ -1,6 +1,6 @@
 import { db } from "@/db";
-import { savingsGoals } from "@/db/schema";
-import { eq, sql } from "drizzle-orm";
+import { savingsGoals, personalIncomes } from "@/db/schema";
+import { eq, sql, and, gte, lt } from "drizzle-orm";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -118,7 +118,11 @@ export async function SavingsList() {
   const userId = session.user.id;
   const today = new Date();
 
-  const [goals, [stats]] = await Promise.all([
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+  const startOfNextMonth = new Date(today.getFullYear(), today.getMonth() + 1, 1);
+  const startOfLastMonth = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+
+  const [goals, [stats], [thisMonthRow], [lastMonthRow]] = await Promise.all([
     db
       .select()
       .from(savingsGoals)
@@ -137,7 +141,33 @@ export async function SavingsList() {
       })
       .from(savingsGoals)
       .where(eq(savingsGoals.userId, userId)),
+
+    db
+      .select({ total: sql<string>`COALESCE(SUM(${personalIncomes.amount}), '0')` })
+      .from(personalIncomes)
+      .where(
+        and(
+          eq(personalIncomes.userId, userId),
+          gte(personalIncomes.date, startOfMonth),
+          lt(personalIncomes.date, startOfNextMonth)
+        )
+      ),
+
+    db
+      .select({ total: sql<string>`COALESCE(SUM(${personalIncomes.amount}), '0')` })
+      .from(personalIncomes)
+      .where(
+        and(
+          eq(personalIncomes.userId, userId),
+          gte(personalIncomes.date, startOfLastMonth),
+          lt(personalIncomes.date, startOfMonth)
+        )
+      ),
   ]);
+
+  const thisMonth = Number(thisMonthRow?.total ?? 0);
+  const lastMonth = Number(lastMonthRow?.total ?? 0);
+  const monthlyIncome = thisMonth > 0 ? thisMonth : lastMonth;
 
   const totalGoals = Number(stats.total);
   const completedGoals = Number(stats.completed);
@@ -208,7 +238,7 @@ export async function SavingsList() {
             Track your progress towards every financial milestone.
           </p>
         </div>
-        <SavingsGoalFormDialog userId={userId}>
+        <SavingsGoalFormDialog userId={userId} monthlyIncome={monthlyIncome}>
           <Button className="rounded-xl gap-2">
             <span className="text-base leading-none">+</span> New Goal
           </Button>
@@ -257,7 +287,7 @@ export async function SavingsList() {
                 Create your first goal to start tracking your savings.
               </p>
             </div>
-            <SavingsGoalFormDialog userId={userId}>
+            <SavingsGoalFormDialog userId={userId} monthlyIncome={monthlyIncome}>
               <Button variant="outline" className="rounded-xl mt-1">
                 + New Goal
               </Button>
@@ -495,6 +525,7 @@ export async function SavingsList() {
                     )}
                     <SavingsGoalFormDialog
                       userId={userId}
+                      monthlyIncome={monthlyIncome}
                       defaultValues={defaultValues}
                     >
                       <Button

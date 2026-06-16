@@ -7,8 +7,6 @@ import {
   loans,
 } from "@/db/schema";
 import { eq, and, sql, gte, lte } from "drizzle-orm";
-import { getSession } from "@/lib/session";
-import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
@@ -40,11 +38,7 @@ function getExpenseCategoryLabel(value: string): string {
   return PERSONAL_EXPENSE_CATEGORIES.find((c) => c.value === value)?.label ?? value;
 }
 
-export async function PfDashboard() {
-  const session = await getSession();
-  if (!session) redirect("/login");
-
-  const userId = session.user.id;
+export async function PfDashboard({ userId }: { userId: string }) {
 
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);

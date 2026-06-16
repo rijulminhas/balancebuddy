@@ -41,7 +41,6 @@ function getInitials(name?: string | null) {
 
 export function PfHeader({ session, onMenuClick }: PfHeaderProps) {
   const { data: clientSession } = useSession();
-  const router = useRouter();
   const user = clientSession?.user ?? session.user;
 
   return (
@@ -81,7 +80,7 @@ export function PfHeader({ session, onMenuClick }: PfHeaderProps) {
       {/* Right */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => router.refresh()}
+          onClick={() => window.location.reload()}
           className="flex items-center cursor-pointer justify-center rounded-xl p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
           aria-label="Refresh page"
         >

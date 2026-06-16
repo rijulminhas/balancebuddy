@@ -1,8 +1,6 @@
 import { db } from "@/db";
 import { personalIncomes } from "@/db/schema";
 import { eq, desc, sql, count, and, gte, lte } from "drizzle-orm";
-import { getSession } from "@/lib/session";
-import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,13 +25,10 @@ import { PaginationBar } from "@/components/ui/pagination-bar";
 
 interface IncomeListProps {
   page: number;
+  userId: string;
 }
 
-export async function IncomeList({ page }: IncomeListProps) {
-  const session = await getSession();
-  if (!session) redirect("/login");
-
-  const userId = session.user.id;
+export async function IncomeList({ page, userId }: IncomeListProps) {
 
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);

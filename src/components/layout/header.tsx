@@ -1,7 +1,6 @@
 "use client";
 
 import { signOut, useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import type { Session } from "next-auth";
 import { LogOut, Menu, RefreshCw, User, Wallet, ArrowLeftRight } from "lucide-react";
 import {
@@ -34,8 +33,6 @@ function getInitials(name?: string | null) {
 
 export function Header({ session, onMenuClick }: HeaderProps) {
   const { data: clientSession } = useSession();
-  const router = useRouter();
-
   // Prefer the live client session so the avatar/name update immediately after
   // the user saves their profile (which calls useSession().update()) without
   // requiring a full page reload.
@@ -76,7 +73,7 @@ export function Header({ session, onMenuClick }: HeaderProps) {
       {/* Right */}
       <div className="flex items-center gap-2">
         <button
-          onClick={() => router.refresh()}
+          onClick={() => window.location.reload()}
           className="flex items-center cursor-pointer justify-center rounded-xl p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
           aria-label="Refresh page"
         >
