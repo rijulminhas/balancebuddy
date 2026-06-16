@@ -124,17 +124,17 @@ export default async function LandingPage() {
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
-            <div className="relative h-8 w-8 shrink-0 overflow-hidden rounded-xl bg-primary">
+            <div className="relative h-45 w-45 shrink-0 overflow-hidden">
               <Image
-                src="/images/balance.jpg"
+                 src="/images/balancebuddylogo.png"
                 alt="BalanceBuddy Logo"
                 fill
-                sizes="32px"
+                sizes="180px"
                 className="object-contain"
                 priority
               />
             </div>
-            <span className="text-sm font-semibold">BalanceBuddy</span>
+            {/* <span className="text-sm font-semibold">BalanceBuddy</span> */}
           </div>
           <nav className="hidden items-center gap-6 text-sm text-muted-foreground sm:flex">
             <a href="#modules" className="hover:text-foreground transition-colors">Modules</a>

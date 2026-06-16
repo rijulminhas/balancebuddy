@@ -61,7 +61,7 @@ function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
   return (
     <>
       {/* Logo / branding */}
-      <div
+      {/* <div
         className={cn(
           "flex h-16 items-center border-b border-sidebar-border shrink-0",
           collapsed ? "justify-center" : "px-5 gap-3"
@@ -87,6 +87,37 @@ function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
             </p>
           </div>
         )}
+      </div> */}
+       <div
+        className={cn(
+          "flex h-16 items-center border-b border-sidebar-border shrink-0",
+          collapsed ? "justify-center" : "px-5",
+        )}
+      >
+        <Link
+          href="/"
+          onClick={onNavClick}
+          className="flex items-center gap-3"
+        >
+          {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
+            BB
+          </div> */}
+          <div className="relative h-45 w-45 shrink-0 overflow-hidden rounded-xl">
+            <Image
+              src="/images/balancebuddypersonallogo.png"
+              alt="BalanceBuddy Logo"
+              fill
+              sizes="180px"
+              className="object-contain"
+              priority
+            />
+          </div>
+          {/* {!collapsed && (
+            <span className="text-base font-black tracking-tight text-sidebar-foreground">
+              BalanceBuddy
+            </span>
+          )} */}
+        </Link>
       </div>
 
       {/* Nav items */}

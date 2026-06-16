@@ -23,19 +23,19 @@ export default async function AuthLayout({
           {/* <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-base font-black shadow-lg shadow-primary/40">
             BB
           </div> */}
-          <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl">
+          <div className="relative h-60 w-60 shrink-0 overflow-hidden">
             <Image
-               src="/images/balance.jpg"
+               src="/images/balancebuddylogo.png"
               alt="BalanceBuddy Logo"
               fill
-              sizes="40px"
+              sizes="240px"
               className="object-contain"
               priority
             />
           </div>
-          <span className="text-xl font-black tracking-tight text-sidebar-foreground">
+          {/* <span className="text-xl font-black tracking-tight text-sidebar-foreground">
             BalanceBuddy
-          </span>
+          </span> */}
         </Link>
 
         {/* Hero text */}
@@ -77,17 +77,17 @@ export default async function AuthLayout({
               {/* <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground text-sm font-black shadow-lg shadow-primary/30">
                 BB
               </div> */}
-              <div className="relative h-9 w-9 shrink-0 overflow-hidden rounded-xl">
+              <div className="relative h-50 w-50 shrink-0 overflow-hidden rounded-xl">
                 <Image
-                   src="/images/balance.jpg"
+                    src="/images/balancebuddylogo.png"
                   alt="BalanceBuddy Logo"
                   fill
-                  sizes="36px"
+                  sizes="200px"
                   className="object-contain"
                   priority
                 />
               </div>
-              <span className="text-lg font-black tracking-tight">BalanceBuddy</span>
+              {/* <span className="text-lg font-black tracking-tight">BalanceBuddy</span> */}
             </div>
           </div>
           {children}
