@@ -1,8 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { writeFile, mkdir } from "fs/promises";
-import { join } from "path";
+import { put } from "@vercel/blob";
 import { randomBytes } from "crypto";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -22,11 +21,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "File must be under 5 MB" }, { status: 400 });
 
   const ext = file.name.split(".").pop() ?? "jpg";
-  const filename = `${randomBytes(12).toString("hex")}.${ext}`;
-  const dir = join(process.cwd(), "public", "uploads", "receipts");
+  const filename = `receipts/${randomBytes(12).toString("hex")}.${ext}`;
 
-  await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, filename), Buffer.from(await file.arrayBuffer()));
+  const blob = await put(filename, file, {
+    access: "public",
+    contentType: file.type,
+  });
 
-  return NextResponse.json({ url: `/uploads/receipts/${filename}` });
+  return NextResponse.json({ url: blob.url });
 }
