@@ -1,13 +1,14 @@
 "use server";
 
 import { db } from "@/db";
-import { feedback } from "@/db/schema";
+import { feedback, users } from "@/db/schema";
 import { eq, and, gt } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { getSession } from "@/lib/session";
 import type { ActionResult } from "./auth";
 import { isSuperAdmin } from "@/lib/super-admin";
+import { notifyUsers } from "@/lib/notify";
 
 const FEEDBACK_TYPES = [
   "feedback",
@@ -69,6 +70,26 @@ export async function submitFeedback(input: FeedbackInput): Promise<ActionResult
       allowPublicDisplay: true,
     })
     .returning({ id: feedback.id });
+
+  // Notify superadmin via in-app + push notification
+  if (process.env.SUPER_ADMIN_EMAIL) {
+    const [superAdmin] = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, process.env.SUPER_ADMIN_EMAIL))
+      .limit(1);
+
+    if (superAdmin) {
+      await notifyUsers(
+        [superAdmin.id],
+        null,
+        "general",
+        "New feedback submitted",
+        `${session.user.name ?? "A user"} submitted ${type.replace(/_/g, " ")} — "${title.trim()}"`,
+        { url: "/admin/feedback" }
+      );
+    }
+  }
 
   revalidatePath("/admin/feedback");
   return { success: true, data: { id: created.id } };
