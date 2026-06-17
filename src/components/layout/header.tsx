@@ -58,8 +58,8 @@ export function Header({ session, onMenuClick }: HeaderProps) {
                 className="flex items-center gap-2 rounded-xl border border-sidebar-border bg-sidebar-accent/60 px-3 py-1.5 text-sm font-semibold text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-all duration-150 group"
               >
                 <Wallet className="h-4 w-4 text-primary" />
-                <span className="hidden sm:inline">Personal Finance</span>
-                <span className="sm:hidden">Finance</span>
+                <span className="hidden sm:inline">Personal Expense</span>
+                <span className="sm:hidden">Personal</span>
                 <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground group-hover:text-primary transition-colors" />
               </Link>
             </TooltipTrigger>

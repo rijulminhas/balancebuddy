@@ -194,7 +194,7 @@ export async function PfDashboard({ userId }: { userId: string }) {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-4xl font-black tracking-tight">Personal Finance</h1>
+        <h1 className="text-4xl font-black tracking-tight">Personal Expense</h1>
         <p className="mt-1.5 text-base text-muted-foreground">
           Your complete financial overview for {monthLabel}
         </p>
