@@ -42,6 +42,11 @@ function TestimonialCard({ item }: { item: Testimonial }) {
   return (
     <div className="flex flex-col h-full rounded-xl border bg-card p-5 shadow-xs transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md hover:border-primary/20">
       <StarRow rating={item.rating} />
+      {item.title && (
+        <p className="mb-1.5 text-sm font-semibold tracking-tight text-foreground line-clamp-1">
+          {item.title}
+        </p>
+      )}
       <p className="flex-1 text-sm leading-relaxed text-foreground/80 mb-4">
         &ldquo;{item.description}&rdquo;
       </p>
