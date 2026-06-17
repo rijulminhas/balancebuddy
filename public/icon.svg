@@ -1,0 +1,98 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" shape-rendering="geometricPrecision">
+  <defs>
+    <!-- Main background gradient: deep indigo -->
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="512" y2="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#818cf8"/>
+      <stop offset="60%" stop-color="#6366f1"/>
+      <stop offset="100%" stop-color="#3730a3"/>
+    </linearGradient>
+
+    <!-- Wallet body gradient: white to soft indigo -->
+    <linearGradient id="walletGrad" x1="88" y1="296" x2="88" y2="452" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="100%" stop-color="#e0e7ff"/>
+    </linearGradient>
+
+    <!-- Wallet pocket gradient -->
+    <linearGradient id="pocketGrad" x1="316" y1="332" x2="316" y2="428" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#c7d2fe"/>
+      <stop offset="100%" stop-color="#a5b4fc"/>
+    </linearGradient>
+
+    <!-- Drop shadow filter for wallet -->
+    <filter id="walletShadow" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#1e1b4b" flood-opacity="0.35"/>
+    </filter>
+
+    <!-- Drop shadow for chart bars -->
+    <filter id="barShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#1e1b4b" flood-opacity="0.2"/>
+    </filter>
+  </defs>
+
+  <!-- ── Background ── -->
+  <rect width="512" height="512" rx="114" ry="114" fill="url(#bgGrad)"/>
+
+  <!-- Subtle top-left gloss -->
+  <ellipse cx="160" cy="100" rx="240" ry="140" fill="white" fill-opacity="0.06"/>
+
+  <!-- ── Chart Bars (ascending left to right) ── -->
+  <g filter="url(#barShadow)">
+    <!-- Bar 1: shortest -->
+    <rect x="108" y="238" width="52" height="72" rx="13" fill="white" fill-opacity="0.35"/>
+    <!-- Bar 2 -->
+    <rect x="180" y="198" width="52" height="112" rx="13" fill="white" fill-opacity="0.50"/>
+    <!-- Bar 3 -->
+    <rect x="252" y="154" width="52" height="156" rx="13" fill="white" fill-opacity="0.68"/>
+    <!-- Bar 4: tallest -->
+    <rect x="324" y="108" width="52" height="202" rx="13" fill="white" fill-opacity="0.88"/>
+  </g>
+
+  <!-- Trend line over bars -->
+  <polyline
+    points="134,231  206,191  278,147  350,101"
+    stroke="white"
+    stroke-width="11"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+    opacity="0.95"/>
+
+  <!-- Arrow head at trend line tip -->
+  <circle cx="350" cy="101" r="18" fill="white" opacity="0.95"/>
+  <polyline
+    points="342,109  350,93  358,109"
+    stroke="#4338ca"
+    stroke-width="5"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"/>
+
+  <!-- ── Wallet Body ── -->
+  <g filter="url(#walletShadow)">
+    <rect x="72" y="296" width="368" height="160" rx="36" fill="url(#walletGrad)"/>
+  </g>
+
+  <!-- Wallet card pocket / clasp on right -->
+  <rect x="316" y="332" width="124" height="88" rx="24" fill="url(#pocketGrad)"/>
+
+  <!-- Pocket hinge circle -->
+  <circle cx="378" cy="376" r="26" fill="#818cf8" fill-opacity="0.6"/>
+  <circle cx="378" cy="376" r="13" fill="white" fill-opacity="0.75"/>
+
+  <!-- Rupee ₹ symbol, bold and centered in wallet body -->
+  <text
+    x="214"
+    y="407"
+    font-family="'Arial Black', Arial, 'Helvetica Neue', sans-serif"
+    font-size="112"
+    font-weight="900"
+    fill="#3730a3"
+    text-anchor="middle"
+    dominant-baseline="auto"
+    fill-opacity="0.9">&#x20B9;</text>
+
+  <!-- Bottom wallet edge shadow line -->
+  <rect x="72" y="420" width="368" height="36" rx="0" fill="#1e1b4b" fill-opacity="0.08"/>
+  <rect x="72" y="420" width="368" height="36" rx="0 0 36 36" fill="none"/>
+</svg>
