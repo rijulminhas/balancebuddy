@@ -5,10 +5,11 @@ import {
   expenses,
   expenseParticipants,
   groupMembers,
+  settlements,
   auditLogs,
   users,
 } from "@/db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
@@ -266,6 +267,116 @@ export async function deleteExpense(
   await db.delete(expenses).where(eq(expenses.id, expenseId));
 
   revalidatePath("/expenses");
+  revalidatePath("/dashboard");
+
+  return { success: true };
+}
+
+const DEFAULT_RESET_REASON = "Expenses are reset to 0 by all members decision";
+
+export async function resetGroupExpenses(
+  userId: string,
+  groupId: string,
+  reason?: string
+): Promise<ActionResult> {
+  // Verify requester is owner or admin
+  const [membership] = await db
+    .select({ role: groupMembers.role })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.groupId, groupId),
+        eq(groupMembers.userId, userId),
+        eq(groupMembers.status, "active")
+      )
+    )
+    .limit(1);
+
+  if (!membership) return { success: false, error: "Not a member of this group" };
+  if (membership.role !== "owner" && membership.role !== "admin") {
+    return { success: false, error: "Only owners and admins can reset group expenses" };
+  }
+
+  const now = new Date();
+  const resetReason = reason?.trim() || DEFAULT_RESET_REASON;
+
+  // 1. Fetch all expense IDs for this group
+  const groupExpenses = await db
+    .select({ id: expenses.id })
+    .from(expenses)
+    .where(eq(expenses.groupId, groupId));
+
+  if (groupExpenses.length > 0) {
+    const expenseIds = groupExpenses.map((e) => e.id);
+
+    // 2. Mark all expense participants as paid
+    await db
+      .update(expenseParticipants)
+      .set({ isPaid: true, updatedAt: now })
+      .where(
+        and(
+          inArray(expenseParticipants.expenseId, expenseIds),
+          eq(expenseParticipants.isPaid, false)
+        )
+      );
+
+    // 3. Mark all expenses as settled
+    await db
+      .update(expenses)
+      .set({ isSettled: true, updatedAt: now })
+      .where(and(eq(expenses.groupId, groupId), eq(expenses.isSettled, false)));
+  }
+
+  // 4. Cancel all open settlements for this group
+  await db
+    .update(settlements)
+    .set({ status: "cancelled", updatedAt: now })
+    .where(
+      and(
+        eq(settlements.groupId, groupId),
+        or(
+          eq(settlements.status, "pending"),
+          eq(settlements.status, "awaiting_confirmation")
+        )
+      )
+    );
+
+  // 5. Audit log
+  await db.insert(auditLogs).values({
+    groupId,
+    userId,
+    action: "expense.reset",
+    resource: "group",
+    resourceId: groupId,
+    after: { reason: resetReason },
+  });
+
+  // 6. Notify all active group members (except the requester)
+  const activeMembers = await db
+    .select({ userId: groupMembers.userId })
+    .from(groupMembers)
+    .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active")));
+
+  const [requester] = await db
+    .select({ name: users.name })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const memberIds = activeMembers.map((m) => m.userId);
+  if (memberIds.length > 0) {
+    await notifyUsers(
+      memberIds,
+      groupId,
+      "general",
+      "Group expenses reset to zero",
+      resetReason,
+      { data: { resetBy: requester?.name ?? "An admin", reason: resetReason }, url: "/expenses" }
+    );
+  }
+
+  revalidatePath("/expenses");
+  revalidatePath("/settlements");
   revalidatePath("/dashboard");
 
   return { success: true };

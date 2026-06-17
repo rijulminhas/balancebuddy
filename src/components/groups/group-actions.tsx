@@ -19,9 +19,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { LogOut, MoreHorizontal, Plus } from "lucide-react";
+import { LogOut, MoreHorizontal, RotateCcw } from "lucide-react";
 import { LeaveGroupModal } from "./leave-group-modal";
 import { TransferOwnershipModal, type TransferMember } from "./transfer-ownership-modal";
+import { ResetExpensesModal } from "./reset-expenses-modal";
 
 interface GroupActionsProps {
   groupId: string;
@@ -30,11 +31,13 @@ interface GroupActionsProps {
   members: TransferMember[];
 }
 
-type ActiveModal = "none" | "create-new-guard" | "leave-confirm" | "transfer-owner";
+type ActiveModal = "none" | "create-new-guard" | "leave-confirm" | "transfer-owner" | "reset-expenses";
 
 export function GroupActions({ groupId, role, userId, members }: GroupActionsProps) {
   const [activeModal, setActiveModal] = useState<ActiveModal>("none");
   const [redirectTo, setRedirectTo] = useState("/dashboard");
+
+  const isPrivileged = role === "owner" || role === "admin";
 
   const hasOtherMembers = members.some((m) => m.userId !== userId);
 
@@ -69,11 +72,18 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-48">
-          {/* <DropdownMenuItem onSelect={handleCreateNewClick}>
-            <Plus className="mr-2 h-4 w-4" />
-            Create new group
-          </DropdownMenuItem>
-          <DropdownMenuSeparator /> */}
+          {/* {isPrivileged && (
+            <>
+              <DropdownMenuItem
+                className="text-destructive focus:text-destructive"
+                onSelect={() => setActiveModal("reset-expenses")}
+              >
+                <RotateCcw className="mr-2 h-4 w-4" />
+                Reset expenses
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+            </>
+          )} */}
           <DropdownMenuItem
             className="text-destructive focus:text-destructive"
             onSelect={handleLeaveClick}
@@ -123,6 +133,13 @@ export function GroupActions({ groupId, role, userId, members }: GroupActionsPro
         open={activeModal === "transfer-owner"}
         onOpenChange={(v) => { if (!v) setActiveModal("none"); }}
         redirectTo={redirectTo}
+      />
+
+      <ResetExpensesModal
+        groupId={groupId}
+        userId={userId}
+        open={activeModal === "reset-expenses"}
+        onOpenChange={(v) => { if (!v) setActiveModal("none"); }}
       />
     </>
   );

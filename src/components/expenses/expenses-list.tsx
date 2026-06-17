@@ -17,6 +17,7 @@ import { fmt } from "./utils";
 import { CATEGORY_COLORS } from "./constants";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { ExpenseAnalytics } from "./expense-analytics";
+import { ExpensesActionsMenu } from "./expenses-actions-menu";
 
 const PAGE_SIZE = 20;
 
@@ -25,7 +26,7 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ groupId: groupMembers.groupId })
+    .select({ groupId: groupMembers.groupId, role: groupMembers.role })
     .from(groupMembers)
     .where(and(eq(groupMembers.userId, session.user.id), eq(groupMembers.status, "active")))
     .orderBy(desc(groupMembers.joinedAt))
@@ -162,12 +163,18 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
             {total} expense{total !== 1 ? "s" : ""} total
           </p>
         </div>
-        <Button asChild size="lg">
-          <Link href="/expenses/new">
-            <Plus className="mr-2 h-4 w-4" />
-            Add expense
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+         
+          <Button asChild size="lg">
+            <Link href="/expenses/new">
+              <Plus className="mr-2 h-4 w-4" />
+              Add expense
+            </Link>
+          </Button>
+           {/* {(membership.role === "owner" || membership.role === "admin") && (
+            <ExpensesActionsMenu groupId={groupId} userId={session.user.id} />
+          )} */}
+        </div>
       </div>
 
       <ExpenseAnalytics groupId={groupId} />
