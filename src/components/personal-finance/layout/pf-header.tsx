@@ -11,6 +11,7 @@ import {
   LogOut,
   User,
   LayoutDashboard,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   Tooltip,
@@ -115,6 +116,11 @@ export function PfHeader({ session, onMenuClick }: PfHeaderProps) {
             <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
               <Link href="/settings/profile">
                 <User className="mr-2 h-4 w-4" />Profile
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
+              <Link href="/feedback">
+                <MessageSquarePlus className="mr-2 h-4 w-4" />Give Feedback
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />

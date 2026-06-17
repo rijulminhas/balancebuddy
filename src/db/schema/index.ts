@@ -11,3 +11,4 @@ export * from "./audit";
 export * from "./reminders";
 export * from "./shopping";
 export * from "./personal-finance";
+export * from "./feedback";

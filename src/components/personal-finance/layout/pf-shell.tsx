@@ -7,10 +7,11 @@ import { PfHeader } from "./pf-header";
 
 interface PfShellProps {
   session: Session;
+  isSuperAdmin?: boolean;
   children: React.ReactNode;
 }
 
-export function PfShell({ session, children }: PfShellProps) {
+export function PfShell({ session, isSuperAdmin = false, children }: PfShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -18,6 +19,7 @@ export function PfShell({ session, children }: PfShellProps) {
       <PfSidebar
         mobileOpen={mobileOpen}
         onMobileClose={() => setMobileOpen(false)}
+        isSuperAdmin={isSuperAdmin}
       />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <PfHeader

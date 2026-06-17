@@ -7,15 +7,16 @@ import { Header } from "./header";
 
 interface AppShellProps {
   session: Session;
+  isSuperAdmin?: boolean;
   children: React.ReactNode;
 }
 
-export function AppShell({ session, children }: AppShellProps) {
+export function AppShell({ session, isSuperAdmin = false, children }: AppShellProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} />
+      <Sidebar mobileOpen={mobileOpen} onMobileClose={() => setMobileOpen(false)} isSuperAdmin={isSuperAdmin} />
       <div className="flex flex-1 flex-col overflow-hidden min-w-0">
         <Header session={session} onMenuClick={() => setMobileOpen(true)} />
         <main className="flex-1 overflow-y-auto bg-background">

@@ -2,7 +2,7 @@
 
 import { signOut, useSession } from "next-auth/react";
 import type { Session } from "next-auth";
-import { LogOut, Menu, RefreshCw, User, Wallet, ArrowLeftRight } from "lucide-react";
+import { LogOut, Menu, MessageSquarePlus, RefreshCw, User, Wallet, ArrowLeftRight } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -109,11 +109,11 @@ export function Header({ session, onMenuClick }: HeaderProps) {
                 <User className="mr-2 h-4 w-4" />Profile
               </Link>
             </DropdownMenuItem>
-            {/* <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
-              <Link href="/settings">
-                <Settings className="mr-2 h-4 w-4" />Settings
+            <DropdownMenuItem asChild className="rounded-lg font-medium cursor-pointer">
+              <Link href="/feedback">
+                <MessageSquarePlus className="mr-2 h-4 w-4" />Give Feedback
               </Link>
-            </DropdownMenuItem> */}
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               className="rounded-lg font-semibold text-destructive focus:text-destructive focus:bg-destructive/10 cursor-pointer"
