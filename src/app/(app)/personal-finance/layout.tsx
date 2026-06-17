@@ -10,5 +10,10 @@ export default async function PersonalFinanceLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
-  return <PfShell session={session}>{children}</PfShell>;
+  const superAdmin =
+    !!session.user.email &&
+    !!process.env.SUPER_ADMIN_EMAIL &&
+    session.user.email === process.env.SUPER_ADMIN_EMAIL;
+
+  return <PfShell session={session} isSuperAdmin={superAdmin}>{children}</PfShell>;
 }

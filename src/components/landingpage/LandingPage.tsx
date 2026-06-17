@@ -1,4 +1,5 @@
 import { getSession } from "@/lib/session";
+import { TestimonialsSection } from "./TestimonialsSection";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -240,6 +241,9 @@ export default async function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Testimonials ───────────────────────────────────────────────── */}
+      <TestimonialsSection />
 
       {/* ── Dashboard ──────────────────────────────────────────────────── */}
       <section className="px-4 py-20">

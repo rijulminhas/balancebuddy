@@ -12,13 +12,18 @@ export default async function AppLayout({
   const session = await getSession();
   if (!session) redirect("/login");
 
+  const superAdmin =
+    !!session.user.email &&
+    !!process.env.SUPER_ADMIN_EMAIL &&
+    session.user.email === process.env.SUPER_ADMIN_EMAIL;
+
   // Pass the server session to SessionProvider so client components
   // (useSession, signOut) never need to make a separate fetch to
   // /api/auth/session — avoids CLIENT_FETCH_ERROR with Next.js 16.
   return (
     <SessionProvider session={session}>
       <PushSubscriptionManager />
-      <AppShell session={session}>{children}</AppShell>
+      <AppShell session={session} isSuperAdmin={superAdmin}>{children}</AppShell>
     </SessionProvider>
   );
 }

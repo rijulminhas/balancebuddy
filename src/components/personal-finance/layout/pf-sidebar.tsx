@@ -15,6 +15,8 @@ import {
   ChevronLeft,
   ChevronRight,
   LogOut,
+  ShieldCheck,
+  MessageSquarePlus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -29,7 +31,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 
 const pfNavItems = [
-  { href: "/personal-finance", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/personal-finance", label: "Personal Dashboard", icon: LayoutDashboard, exact: true },
   { href: "/personal-finance/income", label: "Income", icon: TrendingUp },
   { href: "/personal-finance/expenses", label: "Expenses", icon: TrendingDown },
   { href: "/personal-finance/investments", label: "Investments", icon: LineChart },
@@ -37,6 +39,7 @@ const pfNavItems = [
   { href: "/personal-finance/loans", label: "Loans & EMI", icon: CreditCard },
   { href: "/personal-finance/net-worth", label: "Net Worth", icon: Shield },
   { href: "/personal-finance/analytics", label: "Analytics", icon: BarChart3 },
+  // { href: "/feedback", label: "Give Feedback", icon: MessageSquarePlus, exact: true },
 ];
 
 function getInitials(name?: string | null) {
@@ -52,9 +55,10 @@ function getInitials(name?: string | null) {
 interface PfNavContentProps {
   collapsed?: boolean;
   onNavClick?: () => void;
+  isSuperAdmin?: boolean;
 }
 
-function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
+function PfNavContent({ collapsed = false, onNavClick, isSuperAdmin = false }: PfNavContentProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
 
@@ -102,12 +106,15 @@ function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
           {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
             BB
           </div> */}
-          <div className="relative h-45 w-45 shrink-0 overflow-hidden rounded-xl">
+          <div className={cn(
+            "relative shrink-0 overflow-hidden rounded-xl",
+            collapsed ? "h-8 w-8" : "h-45 w-45",
+          )}>
             <Image
-              src="/images/balancebuddypersonallogo.png"
+              src="/images/balancebuddylogo.png"
               alt="BalanceBuddy Logo"
               fill
-              sizes="180px"
+              sizes={collapsed ? "32px" : "180px"}
               className="object-contain"
               priority
             />
@@ -122,7 +129,12 @@ function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
 
       {/* Nav items */}
       <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-1 scrollbar-none">
-        {pfNavItems.map(({ href, label, icon: Icon, exact }) => {
+        {[
+          ...pfNavItems,
+          ...(isSuperAdmin
+            ? [{ href: "/admin/feedback", label: "Feedback Management", icon: ShieldCheck, exact: true }]
+            : []),
+        ].map(({ href, label, icon: Icon, exact }) => {
           const active = exact
             ? pathname === href
             : pathname === href || pathname.startsWith(href + "/");
@@ -218,10 +230,10 @@ function PfNavContent({ collapsed = false, onNavClick }: PfNavContentProps) {
 interface PfSidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  isSuperAdmin?: boolean;
 }
 
-export function PfSidebar({ mobileOpen = false, onMobileClose }: PfSidebarProps) {
-  const pathname = usePathname();
+export function PfSidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = false }: PfSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
   return (
@@ -234,7 +246,7 @@ export function PfSidebar({ mobileOpen = false, onMobileClose }: PfSidebarProps)
           collapsed ? "w-16" : "w-60"
         )}
       >
-        <PfNavContent collapsed={collapsed} />
+        <PfNavContent collapsed={collapsed} isSuperAdmin={isSuperAdmin} />
 
         <div className="border-t border-sidebar-border px-3 pb-3 pt-1 shrink-0">
           <button
@@ -262,7 +274,7 @@ export function PfSidebar({ mobileOpen = false, onMobileClose }: PfSidebarProps)
           className="flex flex-col gap-0 p-0 w-72 bg-sidebar border-sidebar-border"
         >
           <SheetTitle className="sr-only">Personal Finance Navigation</SheetTitle>
-          <PfNavContent onNavClick={onMobileClose} />
+          <PfNavContent onNavClick={onMobileClose} isSuperAdmin={isSuperAdmin} />
         </SheetContent>
       </Sheet>
     </TooltipProvider>

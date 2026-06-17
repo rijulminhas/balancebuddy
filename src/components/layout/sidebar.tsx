@@ -18,6 +18,7 @@ import {
   History,
   Activity,
   ShoppingCart,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -63,6 +64,7 @@ interface NavContentProps {
   onNavClick?: () => void;
   unreadCount: number;
   historyCount: number;
+  isSuperAdmin?: boolean;
 }
 
 function NavContent({
@@ -70,6 +72,7 @@ function NavContent({
   onNavClick,
   unreadCount,
   historyCount,
+  isSuperAdmin = false,
 }: NavContentProps) {
   const pathname = usePathname();
   const { data: session } = useSession();
@@ -91,12 +94,15 @@ function NavContent({
           {/* <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground text-sm font-black shadow-md shadow-primary/25">
             BB
           </div> */}
-          <div className="relative h-45 w-45 shrink-0 overflow-hidden rounded-xl">
+          <div className={cn(
+            "relative shrink-0 overflow-hidden rounded-xl",
+            collapsed ? "h-8 w-8" : "h-45 w-45",
+          )}>
             <Image
               src="/images/balancebuddylogo.png"
               alt="BalanceBuddy Logo"
               fill
-              sizes="180px"
+              sizes={collapsed ? "32px" : "180px"}
               className="object-contain"
               priority
             />
@@ -117,7 +123,12 @@ function NavContent({
           </p>
         )} */}
 
-        {navItems.map(({ href, label, icon: Icon }) => {
+        {[
+          ...navItems,
+          ...(isSuperAdmin
+            ? [{ href: "/admin/feedback", label: "Feedback Management", icon: ShieldCheck }]
+            : []),
+        ].map(({ href, label, icon: Icon }) => {
           if (href === "/groups/history" && historyCount === 0) return null;
 
           const active =
@@ -228,9 +239,10 @@ function NavContent({
 interface SidebarProps {
   mobileOpen?: boolean;
   onMobileClose?: () => void;
+  isSuperAdmin?: boolean;
 }
 
-export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
+export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = false }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const { unreadCount, historyCount, setCounts } = useSidebarCounts();
@@ -267,6 +279,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
           collapsed={collapsed}
           unreadCount={unreadCount}
           historyCount={historyCount}
+          isSuperAdmin={isSuperAdmin}
         />
 
         {/* Collapse toggle */}
@@ -303,6 +316,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
             onNavClick={onMobileClose}
             unreadCount={unreadCount}
             historyCount={historyCount}
+            isSuperAdmin={isSuperAdmin}
           />
         </SheetContent>
       </Sheet>
