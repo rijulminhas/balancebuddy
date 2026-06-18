@@ -3,7 +3,7 @@ import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
-import { eq, and, desc } from "drizzle-orm";
+import { eq, and, desc, inArray } from "drizzle-orm";
 import { ChatWindow } from "@/components/chat/chat-window";
 
 export const metadata: Metadata = { title: "Chat" };
@@ -37,6 +37,8 @@ export default async function ChatPage() {
       senderId: messages.senderId,
       senderName: users.name,
       content: messages.content,
+      type: messages.type,
+      metadata: messages.metadata,
       createdAt: messages.createdAt,
     })
     .from(messages)
@@ -44,7 +46,7 @@ export default async function ChatPage() {
     .where(
       and(
         eq(messages.groupId, groupId),
-        eq(messages.type, "text"),
+        inArray(messages.type, ["text", "image"]),
         eq(messages.isDeleted, false),
       ),
     )
@@ -55,7 +57,12 @@ export default async function ChatPage() {
   const initial = rows
     .slice(0, INITIAL_LOAD)
     .reverse()
-    .map((m) => ({ ...m, createdAt: m.createdAt.toISOString() }));
+    .map((m) => ({
+      ...m,
+      type: m.type as "text" | "image",
+      metadata: (m.metadata ?? null) as Record<string, unknown> | null,
+      createdAt: m.createdAt.toISOString(),
+    }));
 
   return (
     <ChatWindow
