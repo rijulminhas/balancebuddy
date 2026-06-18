@@ -7,9 +7,27 @@ export const metadata: Metadata = { title: "Settlements" };
 export default async function SettlementsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    historyStatus?: string;
+    historyMonth?: string;
+  }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, historyStatus, historyMonth } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  return <SettlementsList historyPage={page} />;
+  const statusFilter =
+    historyStatus === "pending" ||
+    historyStatus === "completed" ||
+    historyStatus === "rejected"
+      ? historyStatus
+      : "all";
+  const monthFilter = historyMonth ?? "all";
+
+  return (
+    <SettlementsList
+      historyPage={page}
+      historyStatus={statusFilter}
+      historyMonth={monthFilter}
+    />
+  );
 }

@@ -4,12 +4,19 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 interface PaginationBarProps {
   page: number;
   totalPages: number;
+  extraParams?: Record<string, string>;
 }
 
 const base =
   "inline-flex items-center gap-1 rounded-md border border-input bg-background px-3 py-1.5 text-xs font-medium shadow-sm transition-colors";
 
-export function PaginationBar({ page, totalPages }: PaginationBarProps) {
+function buildHref(targetPage: number, extraParams?: Record<string, string>): string {
+  const params = new URLSearchParams(extraParams ?? {});
+  params.set("page", String(targetPage));
+  return `?${params.toString()}`;
+}
+
+export function PaginationBar({ page, totalPages, extraParams }: PaginationBarProps) {
   if (totalPages <= 1) return null;
 
   return (
@@ -20,7 +27,7 @@ export function PaginationBar({ page, totalPages }: PaginationBarProps) {
       <div className="flex items-center gap-2">
         {page > 1 ? (
           <Link
-            href={`?page=${page - 1}`}
+            href={buildHref(page - 1, extraParams)}
             className={`${base} hover:bg-accent hover:text-accent-foreground`}
           >
             <ChevronLeft className="h-3.5 w-3.5" />
@@ -34,7 +41,7 @@ export function PaginationBar({ page, totalPages }: PaginationBarProps) {
         )}
         {page < totalPages ? (
           <Link
-            href={`?page=${page + 1}`}
+            href={buildHref(page + 1, extraParams)}
             className={`${base} hover:bg-accent hover:text-accent-foreground`}
           >
             Next

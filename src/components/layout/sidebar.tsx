@@ -19,6 +19,7 @@ import {
   Activity,
   ShoppingCart,
   ShieldCheck,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -40,6 +41,7 @@ const navItems = [
   { href: "/history", label: "Room History", icon: History },
   { href: "/settlements", label: "Settlements", icon: ArrowLeftRight },
   { href: "/chores", label: "Chores", icon: CheckSquare },
+  { href: "/chat", label: "Group Chat", icon: MessageSquare },
   { href: "/activity", label: "Activity Log", icon: Activity },
   { href: "/reminders", label: "Reminders", icon: AlarmClock },
   { href: "/shopping", label: "Shopping", icon: ShoppingCart },

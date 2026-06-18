@@ -1,7 +1,8 @@
 import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { groupMembers, settlements, users } from "@/db/schema";
-import { eq, and, desc, count } from "drizzle-orm";
+import { eq, and, desc, count, gte, lte } from "drizzle-orm";
+import { PaymentHistoryFilter } from "./payment-history-filter";
 import { redirect } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +22,6 @@ import {
   Sparkles,
   Clock,
   AlertCircle,
-  Plus,
 } from "lucide-react";
 import { format } from "date-fns";
 import { computeGroupBalances, getAwaitingConfirmations } from "@/actions/settlements";
@@ -43,7 +43,15 @@ const STATUS_BADGE: Record<
   rejected: { label: "Rejected", variant: "destructive" },
 };
 
-export async function SettlementsList({ historyPage = 1 }: { historyPage?: number }) {
+export async function SettlementsList({
+  historyPage = 1,
+  historyStatus = "all",
+  historyMonth = "all",
+}: {
+  historyPage?: number;
+  historyStatus?: string;
+  historyMonth?: string;
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -58,6 +66,32 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
 
   const { groupId } = membership;
   const historyOffset = (historyPage - 1) * HISTORY_PAGE_SIZE;
+
+  const statusCondition =
+    historyStatus === "pending"
+      ? eq(settlements.status, "pending")
+      : historyStatus === "completed"
+      ? eq(settlements.status, "completed")
+      : historyStatus === "rejected"
+      ? eq(settlements.status, "rejected")
+      : undefined;
+
+  const monthCondition = (() => {
+    if (!historyMonth || historyMonth === "all") return undefined;
+    const [yearStr, monthStr] = historyMonth.split("-");
+    const year = Number(yearStr);
+    const month = Number(monthStr);
+    if (!year || !month) return undefined;
+    const start = new Date(year, month - 1, 1);
+    const end = new Date(year, month, 1);
+    return and(gte(settlements.createdAt, start), lte(settlements.createdAt, end));
+  })();
+
+  const historyWhere = and(
+    eq(settlements.groupId, groupId),
+    statusCondition,
+    monthCondition,
+  );
 
   const [
     { memberBalances, optimizedTransactions },
@@ -86,7 +120,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
         createdAt: settlements.createdAt,
       })
       .from(settlements)
-      .where(eq(settlements.groupId, groupId))
+      .where(historyWhere)
       .orderBy(desc(settlements.createdAt))
       .limit(HISTORY_PAGE_SIZE)
       .offset(historyOffset),
@@ -94,7 +128,7 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
     db
       .select({ historyTotal: count() })
       .from(settlements)
-      .where(eq(settlements.groupId, groupId)),
+      .where(historyWhere),
 
     getAwaitingConfirmations(groupId, session.user.id),
   ]);
@@ -384,11 +418,17 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
       {/* ── Payment history ───────────────────────────────────────────── */}
       <Card className="border-border/60">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-bold">Payment history</CardTitle>
-            {historyTotal > 0 && (
-              <span className="text-xs text-muted-foreground">{historyTotal} total</span>
-            )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-base font-bold">Payment history</CardTitle>
+              {historyTotal > 0 && (
+                <span className="text-xs text-muted-foreground">{historyTotal} total</span>
+              )}
+            </div>
+            <PaymentHistoryFilter
+              currentStatus={historyStatus}
+              currentMonth={historyMonth}
+            />
           </div>
         </CardHeader>
         {historyTotal === 0 ? (
@@ -455,7 +495,14 @@ export async function SettlementsList({ historyPage = 1 }: { historyPage?: numbe
               </Table>
             </div>
             <div className="px-6 pb-4">
-              <PaginationBar page={historyPage} totalPages={historyTotalPages} />
+              <PaginationBar
+                page={historyPage}
+                totalPages={historyTotalPages}
+                extraParams={{
+                  ...(historyStatus !== "all" && { historyStatus }),
+                  ...(historyMonth !== "all" && { historyMonth }),
+                }}
+              />
             </div>
           </CardContent>
         )}

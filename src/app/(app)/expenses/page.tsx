@@ -6,9 +6,11 @@ export const metadata: Metadata = { title: "Expenses" };
 export default async function ExpensesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; status?: string }>;
 }) {
-  const { page: pageParam } = await searchParams;
+  const { page: pageParam, status } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
-  return <ExpensesList page={page} />;
+  const statusFilter =
+    status === "pending" || status === "settled" ? status : "all";
+  return <ExpensesList page={page} statusFilter={statusFilter} />;
 }
