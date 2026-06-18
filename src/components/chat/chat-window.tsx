@@ -5,7 +5,15 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, Loader2, MessageSquare, RefreshCw, Trash2, ImagePlus } from "lucide-react";
+import {
+  Send,
+  Loader2,
+  MessageSquare,
+  RefreshCw,
+  Trash2,
+  ImagePlus,
+  Clock3,
+} from "lucide-react";
 import { MessageBubble } from "./message-bubble";
 import { ResetChatModal } from "./reset-chat-modal";
 import { EmojiPickerButton } from "./emoji-picker";
@@ -183,7 +191,11 @@ export function ChatWindow({
     if (!file) return;
     e.target.value = "";
 
-    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+    if (
+      !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
+        file.type,
+      )
+    ) {
       toast.error("Only JPEG, PNG, WebP and GIF images are allowed.");
       return;
     }
@@ -224,13 +236,21 @@ export function ChatWindow({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-5rem)]">
+    <div className="flex flex-col h-[calc(95vh-6rem)]">
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Group Chat</h1>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            Chat with your group members
-          </p>
+
+          <div className="flex flex-wrap items-center gap-2 mt-1.5">
+            <p className="text-xs text-muted-foreground">
+              Chat with your group members
+            </p>
+
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
+              <Clock3 className="h-3 w-3" />
+              Chat messages are automatically deleted after 24 hours
+            </span>
+          </div>
         </div>
         <div className="flex items-center gap-2">
           {isPolling && (
@@ -298,8 +318,6 @@ export function ChatWindow({
 
         <div className="border-t px-3 py-2.5 shrink-0">
           <div className="flex items-end gap-1 rounded-xl border bg-muted/40 px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-shadow">
-            
-
             <Textarea
               ref={textareaRef}
               value={input}
@@ -311,8 +329,7 @@ export function ChatWindow({
               disabled={isBusy}
             />
 
-
-<EmojiPickerButton
+            <EmojiPickerButton
               onEmojiSelect={handleEmojiSelect}
               disabled={isBusy}
             />
