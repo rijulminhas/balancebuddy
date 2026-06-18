@@ -3,11 +3,12 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
-import { eq, and, desc, lt, ne } from "drizzle-orm";
+import { eq, and, desc, lt, ne, inArray } from "drizzle-orm";
 import { z } from "zod";
 import { notifyUsers } from "@/lib/notify";
 
 const PAGE_SIZE = 50;
+const CHAT_TYPES = ["text", "image"] as const;
 
 async function getActiveGroupId(userId: string): Promise<string | null> {
   const [membership] = await db
@@ -30,7 +31,7 @@ export async function GET(req: NextRequest) {
 
   const baseWhere = and(
     eq(messages.groupId, groupId),
-    eq(messages.type, "text"),
+    inArray(messages.type, [...CHAT_TYPES]),
     eq(messages.isDeleted, false),
   );
   const whereClause = cursor
@@ -43,6 +44,8 @@ export async function GET(req: NextRequest) {
       senderId: messages.senderId,
       senderName: users.name,
       content: messages.content,
+      type: messages.type,
+      metadata: messages.metadata,
       createdAt: messages.createdAt,
     })
     .from(messages)
@@ -55,13 +58,18 @@ export async function GET(req: NextRequest) {
   const data = rows.slice(0, PAGE_SIZE).reverse();
 
   return NextResponse.json({
-    messages: data.map((m) => ({ ...m, createdAt: m.createdAt.toISOString() })),
+    messages: data.map((m) => ({
+      ...m,
+      createdAt: m.createdAt.toISOString(),
+    })),
     hasMore,
   });
 }
 
 const sendSchema = z.object({
-  content: z.string().min(1).max(1000).trim(),
+  content: z.string().min(1).max(2000),
+  type: z.enum(["text", "image"]).default("text"),
+  metadata: z.record(z.string(), z.unknown()).nullish(),
 });
 
 export async function POST(req: NextRequest) {
@@ -77,18 +85,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid message" }, { status: 400 });
   }
 
+  const { type, metadata } = parsed.data;
+  const content = type === "text" ? parsed.data.content.trim() : parsed.data.content;
+  if (!content) return NextResponse.json({ error: "Invalid message" }, { status: 400 });
+
   const [msg] = await db
     .insert(messages)
     .values({
       groupId,
       senderId: session.user.id,
-      type: "text",
-      content: parsed.data.content,
+      type,
+      content,
+      metadata: (metadata ?? null) as Record<string, unknown> | null,
     })
     .returning({
       id: messages.id,
       senderId: messages.senderId,
       content: messages.content,
+      type: messages.type,
+      metadata: messages.metadata,
       createdAt: messages.createdAt,
     });
 
@@ -105,12 +120,17 @@ export async function POST(req: NextRequest) {
 
   const otherIds = otherMembers.map((m) => m.userId);
   if (otherIds.length > 0) {
+    const notifBody =
+      type === "image"
+        ? "📷 Sent an image"
+        : content.slice(0, 100);
+
     await notifyUsers(
       otherIds,
       groupId,
       "general",
       `New message from ${session.user.name ?? "a member"}`,
-      parsed.data.content.slice(0, 100),
+      notifBody,
       { url: "/chat" },
     );
   }
@@ -120,7 +140,8 @@ export async function POST(req: NextRequest) {
     senderId: msg.senderId,
     senderName: session.user.name ?? null,
     content: msg.content,
+    type: msg.type,
+    metadata: msg.metadata,
     createdAt: msg.createdAt.toISOString(),
   });
 }
-

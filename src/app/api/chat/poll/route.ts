@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { messages, groupMembers, users } from "@/db/schema";
-import { eq, and, desc, asc, gt } from "drizzle-orm";
+import { eq, and, desc, asc, gt, inArray } from "drizzle-orm";
 
 async function getActiveGroupId(userId: string): Promise<string | null> {
   const [membership] = await db
@@ -14,6 +14,8 @@ async function getActiveGroupId(userId: string): Promise<string | null> {
     .limit(1);
   return membership?.groupId ?? null;
 }
+
+const CHAT_TYPES = ["text", "image"] as const;
 
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -34,6 +36,8 @@ export async function GET(req: NextRequest) {
       senderId: messages.senderId,
       senderName: users.name,
       content: messages.content,
+      type: messages.type,
+      metadata: messages.metadata,
       createdAt: messages.createdAt,
     })
     .from(messages)
@@ -41,7 +45,7 @@ export async function GET(req: NextRequest) {
     .where(
       and(
         eq(messages.groupId, groupId),
-        eq(messages.type, "text"),
+        inArray(messages.type, [...CHAT_TYPES]),
         eq(messages.isDeleted, false),
         gt(messages.createdAt, sinceDate),
       ),

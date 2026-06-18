@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback } from "react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, Loader2, MessageSquare, RefreshCw, Trash2 } from "lucide-react";
+import { Send, Loader2, MessageSquare, RefreshCw, Trash2, ImagePlus } from "lucide-react";
 import { MessageBubble } from "./message-bubble";
 import { ResetChatModal } from "./reset-chat-modal";
-import type { ChatMessage } from "@/types/chat";
+import { EmojiPickerButton } from "./emoji-picker";
+import { GifPickerButton } from "./gif-picker";
+import type { ChatMessage, MessageType } from "@/types/chat";
 
 const POLL_MS = 5000;
 
@@ -29,14 +32,18 @@ export function ChatWindow({
   const [msgList, setMsgList] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
   const [hasMore, setHasMore] = useState(hasMoreInitial);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
 
   const isPrivileged = userRole === "owner" || userRole === "admin";
+  const isBusy = isSending || isUploading;
 
   const bottomRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const lastTsRef = useRef<string>(
     initialMessages.at(-1)?.createdAt ?? new Date(0).toISOString(),
   );
@@ -92,24 +99,35 @@ export function ChatWindow({
     }
   }
 
+  async function sendMessage(
+    type: MessageType,
+    content: string,
+    metadata?: Record<string, unknown> | null,
+  ) {
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content, type, metadata: metadata ?? null }),
+    });
+    if (!res.ok) throw new Error("Send failed");
+    const msg = (await res.json()) as ChatMessage;
+    setMsgList((prev) => {
+      if (prev.some((m) => m.id === msg.id)) return prev;
+      lastTsRef.current = msg.createdAt;
+      return [...prev, msg];
+    });
+  }
+
   async function handleSend() {
     const content = input.trim();
-    if (!content || isSending) return;
+    if (!content || isBusy) return;
     setIsSending(true);
     setInput("");
     try {
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ content }),
-      });
-      if (!res.ok) return;
-      const msg = (await res.json()) as ChatMessage;
-      setMsgList((prev) => {
-        if (prev.some((m) => m.id === msg.id)) return prev;
-        lastTsRef.current = msg.createdAt;
-        return [...prev, msg];
-      });
+      await sendMessage("text", content);
+    } catch {
+      toast.error("Failed to send message.");
+      setInput(content);
     } finally {
       setIsSending(false);
     }
@@ -119,6 +137,66 @@ export function ChatWindow({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
+    }
+  }
+
+  function handleEmojiSelect(emoji: string) {
+    const textarea = textareaRef.current;
+    if (!textarea) {
+      setInput((prev) => prev + emoji);
+      return;
+    }
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const next = input.slice(0, start) + emoji + input.slice(end);
+    setInput(next);
+    setTimeout(() => {
+      textarea.selectionStart = start + emoji.length;
+      textarea.selectionEnd = start + emoji.length;
+      textarea.focus();
+    }, 0);
+  }
+
+  async function handleDeleteMessage(messageId: string) {
+    const res = await fetch(`/api/chat/${messageId}`, { method: "DELETE" });
+    if (!res.ok) {
+      toast.error("Failed to delete message.");
+      return;
+    }
+    setMsgList((prev) => prev.filter((m) => m.id !== messageId));
+  }
+
+  async function handleGifSelect(url: string) {
+    if (isBusy) return;
+    setIsUploading(true);
+    try {
+      await sendMessage("image", url, { isGif: true });
+    } catch {
+      toast.error("Failed to send GIF.");
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    setIsUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/chat/upload", { method: "POST", body: fd });
+      const data = (await res.json()) as { url?: string; error?: string };
+      if (!res.ok) {
+        toast.error(data.error ?? "Failed to upload image.");
+        return;
+      }
+      await sendMessage("image", data.url!);
+    } catch {
+      toast.error("Failed to upload image.");
+    } finally {
+      setIsUploading(false);
     }
   }
 
@@ -184,36 +262,78 @@ export function ChatWindow({
                 key={msg.id}
                 message={msg}
                 isOwn={msg.senderId === currentUserId}
+                onDelete={
+                  msg.senderId === currentUserId
+                    ? () => void handleDeleteMessage(msg.id)
+                    : undefined
+                }
               />
             ))
           )}
           <div ref={bottomRef} />
         </div>
 
-        <div className="border-t p-3 shrink-0">
-          <div className="flex gap-2 items-end">
+        <div className="border-t px-3 py-2.5 shrink-0">
+          <div className="flex items-end gap-1 rounded-xl border bg-muted/40 px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-shadow">
+            
+
             <Textarea
+              ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message… (Enter to send, Shift+Enter for new line)"
-              className="min-h-[40px] max-h-[120px] resize-none text-sm"
+              placeholder="Type a message…"
+              className="flex-1 min-h-[36px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent text-sm py-1.5 px-1 placeholder:text-muted-foreground"
               rows={1}
-              disabled={isSending}
+              disabled={isBusy}
+            />
+
+
+<EmojiPickerButton
+              onEmojiSelect={handleEmojiSelect}
+              disabled={isBusy}
+            />
+            <GifPickerButton
+              onGifSelect={(url) => void handleGifSelect(url)}
+              disabled={isBusy}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              className="hidden"
+              onChange={(e) => void handleImageSelect(e)}
             />
             <Button
+              variant="ghost"
               size="icon"
-              disabled={!input.trim() || isSending}
-              onClick={() => void handleSend()}
-              className="shrink-0 h-10 w-10"
+              className="h-8 w-8 shrink-0"
+              disabled={isBusy}
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
             >
-              {isSending ? (
+              {isUploading ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                <Send className="h-4 w-4" />
+                <ImagePlus className="h-4 w-4" />
+              )}
+            </Button>
+            <Button
+              size="icon"
+              disabled={!input.trim() || isBusy}
+              onClick={() => void handleSend()}
+              className="h-8 w-8 shrink-0 rounded-lg"
+            >
+              {isSending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Send className="h-3.5 w-3.5" />
               )}
             </Button>
           </div>
+          <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
+            Enter to send · Shift+Enter for new line
+          </p>
         </div>
       </Card>
 
