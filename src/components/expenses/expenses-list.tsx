@@ -2,6 +2,7 @@ import { getSession } from "@/lib/session";
 import { db } from "@/db";
 import { expenses, expenseParticipants, groupMembers, users, settlements } from "@/db/schema";
 import { eq, and, desc, count, sum } from "drizzle-orm";
+import { ExpensesFilter } from "./expenses-filter";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -17,11 +18,16 @@ import { fmt } from "./utils";
 import { CATEGORY_COLORS } from "./constants";
 import { PaginationBar } from "@/components/ui/pagination-bar";
 import { ExpenseAnalytics } from "./expense-analytics";
-import { ExpensesActionsMenu } from "./expenses-actions-menu";
 
 const PAGE_SIZE = 20;
 
-export async function ExpensesList({ page = 1 }: { page?: number }) {
+export async function ExpensesList({
+  page = 1,
+  statusFilter = "all",
+}: {
+  page?: number;
+  statusFilter?: "all" | "pending" | "settled";
+}) {
   const session = await getSession();
   if (!session) redirect("/login");
 
@@ -36,6 +42,17 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
 
   const { groupId } = membership;
   const offset = (page - 1) * PAGE_SIZE;
+
+  const statusCondition =
+    statusFilter === "settled"
+      ? eq(expenses.isSettled, true)
+      : statusFilter === "pending"
+      ? eq(expenses.isSettled, false)
+      : undefined;
+
+  const expenseWhere = statusCondition
+    ? and(eq(expenses.groupId, groupId), statusCondition)
+    : eq(expenses.groupId, groupId);
 
   const [expenseList, [{ total }]] = await Promise.all([
     db
@@ -52,7 +69,7 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
       })
       .from(expenses)
       .innerJoin(users, eq(expenses.paidById, users.id))
-      .where(eq(expenses.groupId, groupId))
+      .where(expenseWhere)
       .orderBy(desc(expenses.date))
       .limit(PAGE_SIZE)
       .offset(offset),
@@ -60,7 +77,7 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
     db
       .select({ total: count() })
       .from(expenses)
-      .where(eq(expenses.groupId, groupId)),
+      .where(expenseWhere),
   ]);
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
@@ -147,7 +164,6 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
   // Net outstanding = gross debt − payments made; credit if overpaid
   const iOwe = Math.max(0, grossIOwe - totalIPaid);
   const owedToMe = Math.max(0, grossOwedToMe - totalIReceived);
-  const iOweCredit = Math.max(0, totalIPaid - grossIOwe);
 
   // Total I paid for expenses (page-scoped for display)
   const totalSpent = expenseList
@@ -164,16 +180,13 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
           </p>
         </div>
         <div className="flex items-center gap-2">
-         
+          <ExpensesFilter currentStatus={statusFilter} />
           <Button asChild size="lg">
             <Link href="/expenses/new">
               <Plus className="mr-2 h-4 w-4" />
               Add expense
             </Link>
           </Button>
-           {/* {(membership.role === "owner" || membership.role === "admin") && (
-            <ExpensesActionsMenu groupId={groupId} userId={session.user.id} />
-          )} */}
         </div>
       </div>
 
@@ -237,7 +250,13 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
       ) : (
         <Card>
           <CardHeader className="pb-0">
-            <CardTitle className="text-sm font-medium">All expenses</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              {statusFilter === "all"
+                ? "All expenses"
+                : statusFilter === "settled"
+                ? "Settled expenses"
+                : "Pending expenses"}
+            </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
             <div className="overflow-x-auto">
@@ -309,7 +328,11 @@ export async function ExpensesList({ page = 1 }: { page?: number }) {
               </Table>
             </div>
             <div className="px-6 pb-4">
-              <PaginationBar page={page} totalPages={totalPages} />
+              <PaginationBar
+                page={page}
+                totalPages={totalPages}
+                extraParams={statusFilter !== "all" ? { status: statusFilter } : undefined}
+              />
             </div>
           </CardContent>
         </Card>
