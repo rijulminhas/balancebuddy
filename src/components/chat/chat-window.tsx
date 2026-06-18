@@ -4,8 +4,9 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
-import { Send, Loader2, MessageSquare, RefreshCw } from "lucide-react";
+import { Send, Loader2, MessageSquare, RefreshCw, Trash2 } from "lucide-react";
 import { MessageBubble } from "./message-bubble";
+import { ResetChatModal } from "./reset-chat-modal";
 import type { ChatMessage } from "@/types/chat";
 
 const POLL_MS = 5000;
@@ -14,12 +15,16 @@ interface ChatWindowProps {
   initialMessages: ChatMessage[];
   currentUserId: string;
   hasMoreInitial: boolean;
+  groupId: string;
+  userRole: "owner" | "admin" | "member";
 }
 
 export function ChatWindow({
   initialMessages,
   currentUserId,
   hasMoreInitial,
+  groupId,
+  userRole,
 }: ChatWindowProps) {
   const [msgList, setMsgList] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -27,6 +32,9 @@ export function ChatWindow({
   const [isPolling, setIsPolling] = useState(false);
   const [hasMore, setHasMore] = useState(hasMoreInitial);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [showResetModal, setShowResetModal] = useState(false);
+
+  const isPrivileged = userRole === "owner" || userRole === "admin";
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const lastTsRef = useRef<string>(
@@ -123,9 +131,22 @@ export function ChatWindow({
             Chat with your group members
           </p>
         </div>
-        {isPolling && (
-          <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
-        )}
+        <div className="flex items-center gap-2">
+          {isPolling && (
+            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+          )}
+          {isPrivileged && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10 gap-1.5 text-xs"
+              onClick={() => setShowResetModal(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Reset chat
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
@@ -195,6 +216,20 @@ export function ChatWindow({
           </div>
         </div>
       </Card>
+
+      {isPrivileged && (
+        <ResetChatModal
+          groupId={groupId}
+          userId={currentUserId}
+          open={showResetModal}
+          onOpenChange={setShowResetModal}
+          onSuccess={() => {
+            setMsgList([]);
+            setHasMore(false);
+            lastTsRef.current = new Date().toISOString();
+          }}
+        />
+      )}
     </div>
   );
 }

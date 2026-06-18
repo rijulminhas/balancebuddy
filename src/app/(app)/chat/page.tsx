@@ -16,7 +16,7 @@ export default async function ChatPage() {
   if (!session) redirect("/login");
 
   const [membership] = await db
-    .select({ groupId: groupMembers.groupId })
+    .select({ groupId: groupMembers.groupId, role: groupMembers.role })
     .from(groupMembers)
     .where(
       and(
@@ -62,6 +62,8 @@ export default async function ChatPage() {
       initialMessages={initial}
       currentUserId={session.user.id}
       hasMoreInitial={hasMoreInitial}
+      groupId={groupId}
+      userRole={membership.role}
     />
   );
 }
