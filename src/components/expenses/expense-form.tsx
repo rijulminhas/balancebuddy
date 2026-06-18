@@ -193,9 +193,24 @@ export function ExpenseForm() {
         const fd = new FormData();
         fd.append("file", file);
         const res = await fetch("/api/upload", { method: "POST", body: fd });
-        const data = await res.json();
+
+        if (res.status === 413) {
+          toast.error(`"${file.name}" is too large. Please use an image under 5 MB.`);
+          setIsLoading(false);
+          return;
+        }
+
+        let data: { url?: string; error?: string } = {};
+        try {
+          data = await res.json();
+        } catch {
+          toast.error("Upload failed. Please try again.");
+          setIsLoading(false);
+          return;
+        }
+
         if (!res.ok) { toast.error(data.error ?? "Upload failed"); setIsLoading(false); return; }
-        receiptUrls.push(data.url);
+        receiptUrls.push(data.url!);
       }
 
       const parsedCustomSplits: Record<string, number> = {};
