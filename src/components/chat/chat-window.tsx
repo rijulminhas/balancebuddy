@@ -182,19 +182,42 @@ export function ChatWindow({
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = "";
+
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
+      toast.error("Only JPEG, PNG, WebP and GIF images are allowed.");
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Image is too large. Please use an image under 5 MB.");
+      return;
+    }
+
     setIsUploading(true);
     try {
       const fd = new FormData();
       fd.append("file", file);
       const res = await fetch("/api/chat/upload", { method: "POST", body: fd });
-      const data = (await res.json()) as { url?: string; error?: string };
+
+      if (res.status === 413) {
+        toast.error("Image is too large. Please use an image under 5 MB.");
+        return;
+      }
+
+      let data: { url?: string; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        toast.error("Failed to upload image. Please try again.");
+        return;
+      }
+
       if (!res.ok) {
         toast.error(data.error ?? "Failed to upload image.");
         return;
       }
       await sendMessage("image", data.url!);
     } catch {
-      toast.error("Failed to upload image.");
+      toast.error("Failed to upload image. Please try again.");
     } finally {
       setIsUploading(false);
     }
