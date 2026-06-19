@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 interface Testimonial {
   id: string;
   userName: string;
+  userImage: string | null;
   rating: number | null;
   title: string;
   description: string;
@@ -51,8 +52,18 @@ function TestimonialCard({ item }: { item: Testimonial }) {
         &ldquo;{item.description}&rdquo;
       </p>
       <div className="flex items-center gap-2.5 pt-2 border-t border-border/50">
-        <div className={cn("shrink-0 flex items-center justify-center rounded-full h-8 w-8 text-xs font-bold", color)}>
+        <div className={cn("shrink-0 relative flex items-center justify-center rounded-full h-8 w-8 text-xs font-bold overflow-hidden", color)}>
           {item.userName[0]?.toUpperCase() ?? "?"}
+          {item.userImage && (
+            <img
+              src={item.userImage}
+              alt={item.userName}
+              referrerPolicy="no-referrer"
+              loading="lazy"
+              className="absolute inset-0 h-full w-full rounded-full object-cover"
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
+            />
+          )}
         </div>
         <div>
           <p className="text-xs font-semibold text-foreground">{item.userName}</p>
