@@ -119,7 +119,7 @@ export default async function LandingPage() {
   const session = await getSession();
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
 
       {/* ── Navigation ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
@@ -229,7 +229,7 @@ export default async function LandingPage() {
           <p className="mx-auto mb-12 max-w-lg text-center text-sm text-muted-foreground">
             From splitting groceries to tracking chores — every shared-living workflow is covered.
           </p>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
+          <div className="grid grid-cols-1 gap-3 min-[321px]:grid-cols-2 sm:grid-cols-3 md:grid-cols-4">
             {modules.map(({ icon: Icon, title, color, bg }) => (
               <div key={title} className="flex items-center gap-3 rounded-xl border bg-background p-4 shadow-xs">
                 <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${bg}`}>
@@ -366,7 +366,7 @@ export default async function LandingPage() {
       </section>
 
       {/* ── Invite Members Flow ─────────────────────────────────────────── */}
-      <section id="invite" className="px-4 py-20">
+      <section id="invite" className="px-3 py-16 sm:px-4 sm:py-20">
         <div className="mx-auto max-w-5xl">
           <div className="mb-3 text-center text-xs font-medium uppercase tracking-widest text-primary">Invite Flow</div>
           <h2 className="mb-3 text-center text-2xl font-semibold tracking-tight sm:text-3xl">
@@ -375,95 +375,99 @@ export default async function LandingPage() {
           <p className="mx-auto mb-12 max-w-lg text-center text-sm text-muted-foreground">
             Get your flatmates, travel companions, or group members onboard in seconds — by email, invite link, or a shareable code.
           </p>
-          <div className="grid gap-8 md:grid-cols-2">
+          <div className="grid gap-6 md:grid-cols-2">
 
             {/* Left: 3 method cards */}
             <div className="space-y-4">
-              <div className="rounded-2xl border bg-card p-5 shadow-sm">
+              {/* Email */}
+              <div className="overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-500/10">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-blue-500/10">
                     <Mail className="h-4 w-4 text-blue-500" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold">Invite by Email</div>
-                    <div className="text-xs text-muted-foreground">Send a direct invite link to their inbox</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">Invite by Email</div>
+                    <div className="truncate text-xs text-muted-foreground">Direct invite to their inbox</div>
                   </div>
                 </div>
-                <div className="mb-3 flex gap-2">
-                  <div className="flex-1 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">someone@email.com</div>
-                  <div className="rounded-lg bg-blue-500 px-3 py-2 text-xs font-medium text-white">Send Invite</div>
+                <div className="mb-3 flex flex-col gap-2 min-[380px]:flex-row">
+                  <div className="min-w-0 flex-1 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">someone@email.com</div>
+                  <div className="rounded-lg bg-blue-500 px-4 py-2 text-center text-xs font-medium text-white">Send Invite</div>
                 </div>
-                <p className="text-xs text-muted-foreground">They receive an email with a one-click join link. No code to share, no hassle.</p>
+                <p className="text-xs text-muted-foreground">One-click join link sent straight to their inbox.</p>
               </div>
 
-              <div className="rounded-2xl border bg-card p-5 shadow-sm">
+              {/* Link */}
+              <div className="overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-violet-500/10">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-violet-500/10">
                     <Share2 className="h-4 w-4 text-violet-500" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold">Copy Invite Link</div>
-                    <div className="text-xs text-muted-foreground">Share a direct URL anywhere</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">Copy Invite Link</div>
+                    <div className="truncate text-xs text-muted-foreground">Share a direct URL anywhere</div>
                   </div>
                 </div>
-                <div className="mb-3 flex gap-2">
-                  <div className="flex-1 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">balancebuddy.app/invite/A1B2C3D4</div>
-                  <div className="rounded-lg bg-violet-500 px-3 py-2 text-xs font-medium text-white whitespace-nowrap">Copy Link</div>
+                <div className="mb-3 flex flex-col gap-2 min-[380px]:flex-row">
+                  <div className="min-w-0 flex-1 truncate rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">balancebuddy.app/invite/A1B…</div>
+                  <div className="rounded-lg bg-violet-500 px-4 py-2 text-center text-xs font-medium text-white">Copy Link</div>
                 </div>
-                <p className="text-xs text-muted-foreground">Paste in WhatsApp, Telegram, or any chat. Anyone with the link joins in one tap.</p>
+                <p className="text-xs text-muted-foreground">Paste in WhatsApp, Telegram, or any chat.</p>
               </div>
 
-              <div className="rounded-2xl border bg-card p-5 shadow-sm">
+              {/* Code */}
+              <div className="overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10">
                     <Hash className="h-4 w-4 text-emerald-500" />
                   </div>
-                  <div>
-                    <div className="text-sm font-semibold">Share Invite Code</div>
-                    <div className="text-xs text-muted-foreground">A short code for manual entry</div>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-semibold">Share Invite Code</div>
+                    <div className="truncate text-xs text-muted-foreground">A short code for manual entry</div>
                   </div>
                 </div>
-                <div className="mb-3 flex gap-2">
-                  <div className="flex-1 rounded-lg bg-muted/60 px-3 py-2 text-center font-mono text-xs font-bold tracking-[0.25em] text-foreground">A1B2C3D4</div>
-                  <div className="rounded-lg bg-emerald-500 px-3 py-2 text-xs font-medium text-white whitespace-nowrap">Copy Code</div>
+                <div className="mb-3 flex flex-col gap-2 min-[380px]:flex-row">
+                  <div className="min-w-0 flex-1 rounded-lg bg-muted/60 px-3 py-2 text-center font-mono text-xs font-bold tracking-widest text-foreground">A1B2C3D4</div>
+                  <div className="rounded-lg bg-emerald-500 px-4 py-2 text-center text-xs font-medium text-white">Copy Code</div>
                 </div>
-                <p className="text-xs text-muted-foreground">Member enters this code at <span className="font-medium text-foreground">My Group → Join Group</span>. Great when you&apos;re in the same room.</p>
+                <p className="text-xs text-muted-foreground">Enter at <span className="font-medium text-foreground">My Group → Join Group</span>.</p>
               </div>
             </div>
 
             {/* Right: mock invite panel + join steps */}
-            <div className="space-y-5">
-              <div className="rounded-2xl border bg-card p-6 shadow-sm">
+            <div className="space-y-4">
+              <div className="overflow-hidden rounded-2xl border bg-card p-4 shadow-sm sm:p-5">
                 <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
-                  <UserPlus className="h-4 w-4 text-primary" /> Invite Panel — My Group
+                  <UserPlus className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 truncate">Invite Panel — My Group</span>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <div className="mb-1 text-xs font-medium text-muted-foreground">Invite by email</div>
-                    <div className="flex gap-2">
-                      <div className="flex-1 rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">priya@example.com</div>
-                      <div className="rounded-lg bg-primary px-3 py-2 text-xs font-medium text-primary-foreground">Send</div>
+                    <div className="flex flex-col gap-2 min-[380px]:flex-row">
+                      <div className="min-w-0 flex-1 truncate rounded-lg border bg-background px-3 py-2 text-xs text-muted-foreground">priya@example.com</div>
+                      <div className="rounded-lg bg-primary px-4 py-2 text-center text-xs font-medium text-primary-foreground">Send</div>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 text-xs text-muted-foreground">
                     <div className="h-px flex-1 bg-border" />
-                    <span>or share directly</span>
+                    <span className="shrink-0 text-[10px]">or share directly</span>
                     <div className="h-px flex-1 bg-border" />
                   </div>
                   <div>
                     <div className="mb-1 text-xs font-medium text-muted-foreground">Invite link</div>
-                    <div className="flex gap-2">
-                      <div className="flex-1 truncate rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">balancebuddy.app/invite/A1B2C3D4</div>
-                      <div className="flex cursor-pointer items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-medium text-foreground">
+                    <div className="flex flex-col gap-2 min-[380px]:flex-row">
+                      <div className="min-w-0 flex-1 truncate rounded-lg border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">balancebuddy.app/invite/A1B…</div>
+                      <div className="flex cursor-pointer items-center justify-center gap-1 rounded-lg bg-muted px-4 py-2 text-xs font-medium text-foreground">
                         <Copy className="h-3 w-3" /> Copy
                       </div>
                     </div>
                   </div>
                   <div>
                     <div className="mb-1 text-xs font-medium text-muted-foreground">Invite code</div>
-                    <div className="flex gap-2">
-                      <div className="flex-1 rounded-lg border bg-muted/40 px-3 py-2 text-center font-mono text-xs font-bold tracking-[0.25em] text-foreground">A1B2C3D4</div>
-                      <div className="flex cursor-pointer items-center gap-1 rounded-lg bg-muted px-3 py-2 text-xs font-medium text-foreground">
+                    <div className="flex flex-col gap-2 min-[380px]:flex-row">
+                      <div className="min-w-0 flex-1 truncate rounded-lg border bg-muted/40 px-3 py-2 text-center font-mono text-xs font-bold tracking-widest text-foreground">A1B2C3D4</div>
+                      <div className="flex cursor-pointer items-center justify-center gap-1 rounded-lg bg-muted px-4 py-2 text-xs font-medium text-foreground">
                         <Copy className="h-3 w-3" /> Copy
                       </div>
                     </div>
@@ -471,19 +475,19 @@ export default async function LandingPage() {
                 </div>
               </div>
 
-              <div className="rounded-2xl border bg-muted/40 p-5">
-                <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">When a member joins via link</div>
+              <div className="overflow-hidden rounded-2xl border bg-muted/40 p-4 sm:p-5">
+                <div className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">When a member joins</div>
                 <div className="space-y-3">
                   {[
                     { n: "1", t: "Click the invite link", d: "Opens BalanceBuddy in the browser." },
-                    { n: "2", t: "Sign in or register", d: "Takes 30 seconds — no credit card required." },
-                    { n: "3", t: "Automatically joins", d: "Added to the group the moment they log in." },
-                    { n: "4", t: "Start collaborating", d: "Sees expenses, chores, and balances instantly." },
+                    { n: "2", t: "Sign in or register", d: "Takes 30 seconds — no credit card." },
+                    { n: "3", t: "Automatically joins", d: "Added to the group instantly." },
+                    { n: "4", t: "Start collaborating", d: "Sees expenses, chores, and balances." },
                   ].map(({ n, t, d }) => (
                     <div key={n} className="flex gap-3">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">{n}</div>
-                      <div>
-                        <div className="text-xs font-semibold">{t}</div>
+                      <div className="min-w-0">
+                        <div className="truncate text-xs font-semibold">{t}</div>
                         <div className="text-xs text-muted-foreground">{d}</div>
                       </div>
                     </div>
@@ -493,12 +497,12 @@ export default async function LandingPage() {
             </div>
           </div>
 
-          <div className="mt-6 rounded-xl border bg-primary/5 px-5 py-4">
+          <div className="mt-6 overflow-hidden rounded-xl border bg-primary/5 px-4 py-4 sm:px-5">
             <div className="flex items-start gap-3">
               <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <p className="text-xs text-muted-foreground">
+              <p className="min-w-0 text-xs text-muted-foreground">
                 <span className="font-semibold text-foreground">One group at a time: </span>
-                Each user can only belong to one active group. If someone is already in a group, they&apos;ll need to leave it before joining yours.
+                Each user can only belong to one active group. Leave first before joining another.
               </p>
             </div>
           </div>
