@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { messages, groupMembers } from "@/db/schema";
 import { and, eq, desc } from "drizzle-orm";
+import { isSuperAdmin } from "@/lib/super-admin";
 
 export async function DELETE(
   _req: NextRequest,
@@ -14,7 +15,7 @@ export async function DELETE(
 
   const { messageId } = await params;
 
-  // Fetch the message and verify it exists and belongs to the caller
+  // Fetch the message
   const [msg] = await db
     .select({ senderId: messages.senderId, groupId: messages.groupId, isDeleted: messages.isDeleted })
     .from(messages)
@@ -23,12 +24,12 @@ export async function DELETE(
 
   if (!msg) return NextResponse.json({ error: "Message not found" }, { status: 404 });
   if (msg.isDeleted) return NextResponse.json({ error: "Already deleted" }, { status: 410 });
-  if (msg.senderId !== session.user.id)
-    return NextResponse.json({ error: "Cannot delete another user's message" }, { status: 403 });
 
-  // Confirm the message belongs to a group the user is active in
+  const callerIsSuperAdmin = isSuperAdmin(session.user.email);
+
+  // Verify caller is an active member and fetch their role
   const [membership] = await db
-    .select({ groupId: groupMembers.groupId })
+    .select({ groupId: groupMembers.groupId, role: groupMembers.role })
     .from(groupMembers)
     .where(
       and(
@@ -40,8 +41,12 @@ export async function DELETE(
     .orderBy(desc(groupMembers.joinedAt))
     .limit(1);
 
-  if (!membership)
+  if (!membership && !callerIsSuperAdmin)
     return NextResponse.json({ error: "Not a member of this group" }, { status: 403 });
+
+  const isPrivileged = callerIsSuperAdmin || membership?.role === "owner" || membership?.role === "admin";
+  if (msg.senderId !== session.user.id && !isPrivileged)
+    return NextResponse.json({ error: "Cannot delete another user's message" }, { status: 403 });
 
   const now = new Date();
   await db

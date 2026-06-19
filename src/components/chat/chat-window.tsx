@@ -28,6 +28,7 @@ interface ChatWindowProps {
   hasMoreInitial: boolean;
   groupId: string;
   userRole: "owner" | "admin" | "member";
+  isSuperAdmin?: boolean;
 }
 
 export function ChatWindow({
@@ -36,6 +37,7 @@ export function ChatWindow({
   hasMoreInitial,
   groupId,
   userRole,
+  isSuperAdmin = false,
 }: ChatWindowProps) {
   const [msgList, setMsgList] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -50,7 +52,7 @@ export function ChatWindow({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
 
-  const isPrivileged = userRole === "owner" || userRole === "admin";
+  const isPrivileged = isSuperAdmin || userRole === "owner" || userRole === "admin";
   const isBusy = isSending || isUploading;
 
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -190,6 +192,7 @@ export function ChatWindow({
       return;
     }
     setMsgList((prev) => prev.filter((m) => m.id !== messageId));
+    toast.success("Message deleted successfully.");
   }
 
   function handleGifSelect(url: string) {
@@ -316,8 +319,9 @@ export function ChatWindow({
                 key={msg.id}
                 message={msg}
                 isOwn={msg.senderId === currentUserId}
+                canDelete={msg.senderId === currentUserId || isPrivileged}
                 onDelete={
-                  msg.senderId === currentUserId
+                  msg.senderId === currentUserId || isPrivileged
                     ? () => void handleDeleteMessage(msg.id)
                     : undefined
                 }

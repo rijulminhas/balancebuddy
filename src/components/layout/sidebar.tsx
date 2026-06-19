@@ -66,6 +66,7 @@ interface NavContentProps {
   onNavClick?: () => void;
   unreadCount: number;
   historyCount: number;
+  unreadChat: number;
   isSuperAdmin?: boolean;
 }
 
@@ -74,6 +75,7 @@ function NavContent({
   onNavClick,
   unreadCount,
   historyCount,
+  unreadChat,
   isSuperAdmin = false,
 }: NavContentProps) {
   const pathname = usePathname();
@@ -158,6 +160,11 @@ function NavContent({
               {href === "/notifications" && unreadCount > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-sidebar">
                   {unreadCount > 9 ? "9+" : unreadCount}
+                </span>
+              )}
+              {href === "/chat" && unreadChat > 0 && (
+                <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-sidebar">
+                  {unreadChat > 9 ? "9+" : unreadChat}
                 </span>
               )}
             </Link>
@@ -247,7 +254,7 @@ interface SidebarProps {
 export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = false }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  const { unreadCount, historyCount, setCounts } = useSidebarCounts();
+  const { unreadCount, historyCount, unreadChat, setCounts } = useSidebarCounts();
 
   // Close mobile sheet on route change
   useEffect(() => {
@@ -259,7 +266,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = fals
     const load = () => {
       fetch("/api/sidebar-counts")
         .then((r) => r.json())
-        .then((d) => setCounts(d.unread ?? 0, d.history ?? 0))
+        .then((d) => setCounts(d.unread ?? 0, d.history ?? 0, d.unreadChat ?? 0))
         .catch(() => {});
     };
     load();
@@ -281,6 +288,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = fals
           collapsed={collapsed}
           unreadCount={unreadCount}
           historyCount={historyCount}
+          unreadChat={unreadChat}
           isSuperAdmin={isSuperAdmin}
         />
 
@@ -318,6 +326,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = fals
             onNavClick={onMobileClose}
             unreadCount={unreadCount}
             historyCount={historyCount}
+            unreadChat={unreadChat}
             isSuperAdmin={isSuperAdmin}
           />
         </SheetContent>

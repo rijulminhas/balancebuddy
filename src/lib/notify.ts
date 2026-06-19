@@ -31,6 +31,11 @@ export async function notifyUsers(
 ): Promise<void> {
   if (!userIds.length) return;
 
+  const storedData: Record<string, unknown> | null =
+    options?.data || options?.url
+      ? { ...(options?.data ?? {}), ...(options?.url ? { url: options.url } : {}) }
+      : null;
+
   await db.insert(notifications).values(
     userIds.map((userId) => ({
       userId,
@@ -38,7 +43,7 @@ export async function notifyUsers(
       type,
       title,
       body,
-      data: (options?.data ?? null) as Record<string, unknown> | null,
+      data: storedData,
     }))
   );
 
