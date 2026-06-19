@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { format } from "date-fns";
 import { Trash2 } from "lucide-react";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -111,6 +111,7 @@ export function MessageBubble({ message, isOwn, canDelete, onDelete }: MessageBu
     <>
       <div className="group flex items-end gap-2">
         <Avatar className="h-7 w-7 shrink-0 ring-1 ring-border">
+          {message.senderImage && <AvatarImage src={message.senderImage} alt={name} />}
           <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-bold">
             {getInitials(name)}
           </AvatarFallback>
