@@ -7,6 +7,7 @@ import {
   boolean,
   jsonb,
 } from "drizzle-orm/pg-core";
+import type { AnyPgColumn } from "drizzle-orm/pg-core";
 import { users } from "./users";
 import { groups } from "./groups";
 
@@ -30,6 +31,9 @@ export const messages = pgTable("messages", {
   type: messageTypeEnum("type").default("text").notNull(),
   content: text("content").notNull(),
   metadata: jsonb("metadata"),
+  replyToId: uuid("reply_to_id").references((): AnyPgColumn => messages.id, {
+    onDelete: "set null",
+  }),
   isDeleted: boolean("is_deleted").default(false).notNull(),
   deletedAt: timestamp("deleted_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
