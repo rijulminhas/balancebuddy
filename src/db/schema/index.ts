@@ -7,6 +7,7 @@ export * from "./inventory";
 export * from "./assets";
 export * from "./notifications";
 export * from "./messages";
+export * from "./message-reactions";
 export * from "./audit";
 export * from "./reminders";
 export * from "./shopping";

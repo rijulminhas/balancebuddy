@@ -13,6 +13,8 @@ import {
   Trash2,
   ImagePlus,
   Clock3,
+  X,
+  CornerDownLeft,
 } from "lucide-react";
 import { MessageBubble } from "./message-bubble";
 import { ResetChatModal } from "./reset-chat-modal";
@@ -51,6 +53,7 @@ export function ChatWindow({
   const [hasMore, setHasMore] = useState(hasMoreInitial);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
+  const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
 
   const isPrivileged = isSuperAdmin || userRole === "owner" || userRole === "admin";
   const isBusy = isSending || isUploading;
@@ -61,29 +64,47 @@ export function ChatWindow({
   const lastTsRef = useRef<string>(
     initialMessages.at(-1)?.createdAt ?? new Date(0).toISOString(),
   );
+  // Tracks the timestamp of the last poll tick for updatedAt-based change detection
+  const lastPollAtRef = useRef<string>(new Date().toISOString());
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [msgList.length]);
 
   const poll = useCallback(async () => {
+    const pollTime = new Date().toISOString();
     setIsPolling(true);
     try {
       const res = await fetch(
-        `/api/chat/poll?since=${encodeURIComponent(lastTsRef.current)}`,
+        `/api/chat/poll?since=${encodeURIComponent(lastTsRef.current)}&updatedSince=${encodeURIComponent(lastPollAtRef.current)}`,
       );
       if (!res.ok) return;
       const data = (await res.json()) as { messages: ChatMessage[] };
       if (!data.messages.length) return;
+
       setMsgList((prev) => {
-        const seen = new Set(prev.map((m) => m.id));
-        const fresh = data.messages.filter((m) => !seen.has(m.id));
-        if (!fresh.length) return prev;
-        lastTsRef.current = fresh.at(-1)!.createdAt;
+        const seenIds = new Set(prev.map((m) => m.id));
+        const fresh = data.messages.filter((m) => !seenIds.has(m.id));
+        const updates = data.messages.filter((m) => seenIds.has(m.id));
+
+        if (!fresh.length && !updates.length) return prev;
+
+        if (fresh.length) {
+          lastTsRef.current = fresh.at(-1)!.createdAt;
+        }
+
+        // Merge reaction/reply updates into existing messages
+        if (updates.length) {
+          const updatedMap = new Map(updates.map((m) => [m.id, m]));
+          const merged = prev.map((m) => updatedMap.get(m.id) ?? m);
+          return [...merged, ...fresh];
+        }
+
         return [...prev, ...fresh];
       });
     } finally {
       setIsPolling(false);
+      lastPollAtRef.current = pollTime;
     }
   }, []);
 
@@ -117,11 +138,12 @@ export function ChatWindow({
     type: MessageType,
     content: string,
     metadata?: Record<string, unknown> | null,
+    replyToId?: string | null,
   ) {
     const res = await fetch("/api/chat", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, type, metadata: metadata ?? null }),
+      body: JSON.stringify({ content, type, metadata: metadata ?? null, replyToId: replyToId ?? null }),
     });
     if (!res.ok) throw new Error("Send failed");
     const msg = (await res.json()) as ChatMessage;
@@ -141,6 +163,7 @@ export function ChatWindow({
           "image",
           pendingMedia.url,
           pendingMedia.type === "gif" ? { isGif: true } : null,
+          replyTo?.id ?? null,
         );
         setPendingMedia(null);
       } else {
@@ -148,12 +171,14 @@ export function ChatWindow({
         if (!content) return;
         setInput("");
         try {
-          await sendMessage("text", content);
+          await sendMessage("text", content, null, replyTo?.id ?? null);
         } catch {
           toast.error("Failed to send message.");
           setInput(content);
+          return;
         }
       }
+      setReplyTo(null);
     } catch {
       toast.error("Failed to send.");
     } finally {
@@ -165,6 +190,9 @@ export function ChatWindow({
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       void handleSend();
+    }
+    if (e.key === "Escape" && replyTo) {
+      setReplyTo(null);
     }
   }
 
@@ -193,6 +221,62 @@ export function ChatWindow({
     }
     setMsgList((prev) => prev.filter((m) => m.id !== messageId));
     toast.success("Message deleted successfully.");
+  }
+
+  async function handleReact(messageId: string, emoji: string) {
+    // Optimistic update
+    setMsgList((prev) =>
+      prev.map((m) => {
+        if (m.id !== messageId) return m;
+        const existing = m.reactions.find((r) => r.emoji === emoji);
+        const alreadyReacted = existing?.userIds.includes(currentUserId);
+
+        if (alreadyReacted) {
+          return {
+            ...m,
+            reactions: m.reactions
+              .map((r) =>
+                r.emoji === emoji
+                  ? { ...r, count: r.count - 1, userIds: r.userIds.filter((id) => id !== currentUserId) }
+                  : r,
+              )
+              .filter((r) => r.count > 0),
+          };
+        }
+
+        if (existing) {
+          return {
+            ...m,
+            reactions: m.reactions.map((r) =>
+              r.emoji === emoji
+                ? { ...r, count: r.count + 1, userIds: [...r.userIds, currentUserId] }
+                : r,
+            ),
+          };
+        }
+
+        return {
+          ...m,
+          reactions: [...m.reactions, { emoji, count: 1, userIds: [currentUserId] }],
+        };
+      }),
+    );
+
+    const res = await fetch(`/api/chat/${messageId}/react`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ emoji }),
+    });
+
+    if (!res.ok) {
+      toast.error("Failed to react.");
+      // Revert by re-fetching — next poll will sync state
+    }
+  }
+
+  function handleReply(message: ChatMessage) {
+    setReplyTo(message);
+    textareaRef.current?.focus();
   }
 
   function handleGifSelect(url: string) {
@@ -254,12 +338,10 @@ export function ChatWindow({
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Group Chat</h1>
-
           <div className="flex flex-wrap items-center gap-2 mt-1.5">
             <p className="text-xs text-muted-foreground">
               Chat with your group members
             </p>
-
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
               <Clock3 className="h-3 w-3" />
               Chat messages are automatically deleted after 24 hours
@@ -319,12 +401,15 @@ export function ChatWindow({
                 key={msg.id}
                 message={msg}
                 isOwn={msg.senderId === currentUserId}
+                currentUserId={currentUserId}
                 canDelete={msg.senderId === currentUserId || isPrivileged}
                 onDelete={
                   msg.senderId === currentUserId || isPrivileged
                     ? () => void handleDeleteMessage(msg.id)
                     : undefined
                 }
+                onReply={handleReply}
+                onReact={handleReact}
               />
             ))
           )}
@@ -332,6 +417,30 @@ export function ChatWindow({
         </div>
 
         <div className="border-t px-3 py-2.5 shrink-0">
+          {/* Reply context bar */}
+          {replyTo && (
+            <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/60 border border-border">
+              <CornerDownLeft className="h-3.5 w-3.5 text-primary shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] font-semibold text-primary truncate">
+                  Replying to {replyTo.senderName ?? "Unknown"}
+                </p>
+                <p className="text-[11px] text-muted-foreground truncate">
+                  {replyTo.type === "image" ? "📷 Image" : replyTo.content}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReplyTo(null)}
+                className="p-0.5 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground shrink-0 transition-colors"
+                aria-label="Cancel reply"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            </div>
+          )}
+
+          {/* Pending media preview */}
           {pendingMedia && (
             <div className="flex items-center gap-2 mb-2 px-1">
               <img
@@ -347,13 +456,14 @@ export function ChatWindow({
               </button>
             </div>
           )}
+
           <div className="flex items-end gap-1 rounded-xl border bg-muted/40 px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-shadow">
             <Textarea
               ref={textareaRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message…"
+              placeholder={replyTo ? "Write a reply…" : "Type a message…"}
               className="flex-1 min-h-[36px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent text-sm py-1.5 px-1 placeholder:text-muted-foreground"
               rows={1}
               disabled={isBusy}
@@ -403,6 +513,7 @@ export function ChatWindow({
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
             Enter to send · Shift+Enter for new line
+            {replyTo && " · Esc to cancel reply"}
           </p>
         </div>
       </Card>
@@ -417,6 +528,7 @@ export function ChatWindow({
             setMsgList([]);
             setHasMore(false);
             lastTsRef.current = new Date().toISOString();
+            lastPollAtRef.current = new Date().toISOString();
           }}
         />
       )}

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
-import { messages, groupMembers, users } from "@/db/schema";
-import { eq, and, desc, asc, gt, inArray } from "drizzle-orm";
+import { messages, groupMembers, users, messageReactions } from "@/db/schema";
+import { eq, and, desc, asc, gt, or, inArray } from "drizzle-orm";
+import type { ReactionGroup, ReplyPreview, MessageType } from "@/types/chat";
 
 async function getActiveGroupId(userId: string): Promise<string | null> {
   const [membership] = await db
@@ -17,11 +18,37 @@ async function getActiveGroupId(userId: string): Promise<string | null> {
 
 const CHAT_TYPES = ["text", "image"] as const;
 
+function groupReactionsByMessage(
+  raw: { messageId: string; emoji: string; userId: string }[],
+): Map<string, ReactionGroup[]> {
+  const emojiMap = new Map<string, Map<string, string[]>>();
+  for (const r of raw) {
+    if (!emojiMap.has(r.messageId)) emojiMap.set(r.messageId, new Map());
+    const byEmoji = emojiMap.get(r.messageId)!;
+    if (!byEmoji.has(r.emoji)) byEmoji.set(r.emoji, []);
+    byEmoji.get(r.emoji)!.push(r.userId);
+  }
+  const result = new Map<string, ReactionGroup[]>();
+  for (const [msgId, byEmoji] of emojiMap) {
+    result.set(
+      msgId,
+      Array.from(byEmoji.entries()).map(([emoji, userIds]) => ({
+        emoji,
+        count: userIds.length,
+        userIds,
+      })),
+    );
+  }
+  return result;
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const since = req.nextUrl.searchParams.get("since");
+  const updatedSince = req.nextUrl.searchParams.get("updatedSince");
+
   if (!since) return NextResponse.json({ messages: [] });
 
   const sinceDate = new Date(since);
@@ -30,7 +57,31 @@ export async function GET(req: NextRequest) {
   const groupId = await getActiveGroupId(session.user.id);
   if (!groupId) return NextResponse.json({ messages: [] });
 
-  const newMsgs = await db
+  const updatedSinceDate =
+    updatedSince && !isNaN(new Date(updatedSince).getTime())
+      ? new Date(updatedSince)
+      : null;
+
+  const baseFilter = and(
+    eq(messages.groupId, groupId),
+    inArray(messages.type, [...CHAT_TYPES]),
+    eq(messages.isDeleted, false),
+  );
+
+  // Return new messages (createdAt > since) OR messages whose reactions changed
+  // (updatedAt > updatedSince). The client differentiates new vs updated by ID.
+  const whereClause =
+    updatedSinceDate
+      ? and(
+          baseFilter,
+          or(
+            gt(messages.createdAt, sinceDate),
+            gt(messages.updatedAt, updatedSinceDate),
+          ),
+        )
+      : and(baseFilter, gt(messages.createdAt, sinceDate));
+
+  const rows = await db
     .select({
       id: messages.id,
       senderId: messages.senderId,
@@ -39,24 +90,54 @@ export async function GET(req: NextRequest) {
       content: messages.content,
       type: messages.type,
       metadata: messages.metadata,
+      replyToId: messages.replyToId,
       createdAt: messages.createdAt,
     })
     .from(messages)
     .leftJoin(users, eq(messages.senderId, users.id))
-    .where(
-      and(
-        eq(messages.groupId, groupId),
-        inArray(messages.type, [...CHAT_TYPES]),
-        eq(messages.isDeleted, false),
-        gt(messages.createdAt, sinceDate),
-      ),
-    )
+    .where(whereClause)
     .orderBy(asc(messages.createdAt));
 
+  if (!rows.length) return NextResponse.json({ messages: [] });
+
+  const messageIds = rows.map((r) => r.id);
+  const replyToIds = rows.map((r) => r.replyToId).filter(Boolean) as string[];
+
+  const [reactionsRaw, replyMessages] = await Promise.all([
+    db
+      .select({
+        messageId: messageReactions.messageId,
+        emoji: messageReactions.emoji,
+        userId: messageReactions.userId,
+      })
+      .from(messageReactions)
+      .where(inArray(messageReactions.messageId, messageIds)),
+    replyToIds.length
+      ? db
+          .select({
+            id: messages.id,
+            senderName: users.name,
+            content: messages.content,
+            type: messages.type,
+            isDeleted: messages.isDeleted,
+          })
+          .from(messages)
+          .leftJoin(users, eq(messages.senderId, users.id))
+          .where(inArray(messages.id, replyToIds))
+      : Promise.resolve([]),
+  ]);
+
+  const reactionsMap = groupReactionsByMessage(reactionsRaw);
+  const replyMap = new Map(replyMessages.map((r) => [r.id, r]));
+
   return NextResponse.json({
-    messages: newMsgs.map((m) => ({
+    messages: rows.map((m) => ({
       ...m,
       createdAt: m.createdAt.toISOString(),
+      reactions: reactionsMap.get(m.id) ?? [],
+      replyTo: m.replyToId
+        ? ((replyMap.get(m.replyToId) as ReplyPreview | undefined) ?? null)
+        : null,
     })),
   });
 }
