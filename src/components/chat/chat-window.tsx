@@ -41,6 +41,10 @@ export function ChatWindow({
   const [input, setInput] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
+  const [pendingMedia, setPendingMedia] = useState<{
+    url: string;
+    type: "image" | "gif";
+  } | null>(null);
   const [isPolling, setIsPolling] = useState(false);
   const [hasMore, setHasMore] = useState(hasMoreInitial);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -127,15 +131,29 @@ export function ChatWindow({
   }
 
   async function handleSend() {
-    const content = input.trim();
-    if (!content || isBusy) return;
+    if (isBusy) return;
     setIsSending(true);
-    setInput("");
     try {
-      await sendMessage("text", content);
+      if (pendingMedia) {
+        await sendMessage(
+          "image",
+          pendingMedia.url,
+          pendingMedia.type === "gif" ? { isGif: true } : null,
+        );
+        setPendingMedia(null);
+      } else {
+        const content = input.trim();
+        if (!content) return;
+        setInput("");
+        try {
+          await sendMessage("text", content);
+        } catch {
+          toast.error("Failed to send message.");
+          setInput(content);
+        }
+      }
     } catch {
-      toast.error("Failed to send message.");
-      setInput(content);
+      toast.error("Failed to send.");
     } finally {
       setIsSending(false);
     }
@@ -174,16 +192,9 @@ export function ChatWindow({
     setMsgList((prev) => prev.filter((m) => m.id !== messageId));
   }
 
-  async function handleGifSelect(url: string) {
+  function handleGifSelect(url: string) {
     if (isBusy) return;
-    setIsUploading(true);
-    try {
-      await sendMessage("image", url, { isGif: true });
-    } catch {
-      toast.error("Failed to send GIF.");
-    } finally {
-      setIsUploading(false);
-    }
+    setPendingMedia({ url, type: "gif" });
   }
 
   async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -227,7 +238,7 @@ export function ChatWindow({
         toast.error(data.error ?? "Failed to upload image.");
         return;
       }
-      await sendMessage("image", data.url!);
+      setPendingMedia({ url: data.url!, type: "image" });
     } catch {
       toast.error("Failed to upload image. Please try again.");
     } finally {
@@ -317,6 +328,21 @@ export function ChatWindow({
         </div>
 
         <div className="border-t px-3 py-2.5 shrink-0">
+          {pendingMedia && (
+            <div className="flex items-center gap-2 mb-2 px-1">
+              <img
+                src={pendingMedia.url}
+                alt="pending"
+                className="h-16 w-16 rounded-md object-cover border"
+              />
+              <button
+                onClick={() => setPendingMedia(null)}
+                className="text-xs text-muted-foreground hover:text-destructive"
+              >
+                ✕ Remove
+              </button>
+            </div>
+          )}
           <div className="flex items-end gap-1 rounded-xl border bg-muted/40 px-2 py-1.5 focus-within:ring-1 focus-within:ring-ring transition-shadow">
             <Textarea
               ref={textareaRef}
@@ -334,7 +360,7 @@ export function ChatWindow({
               disabled={isBusy}
             />
             <GifPickerButton
-              onGifSelect={(url) => void handleGifSelect(url)}
+              onGifSelect={handleGifSelect}
               disabled={isBusy}
             />
             <input
@@ -360,7 +386,7 @@ export function ChatWindow({
             </Button>
             <Button
               size="icon"
-              disabled={!input.trim() || isBusy}
+              disabled={(!input.trim() && !pendingMedia) || isBusy}
               onClick={() => void handleSend()}
               className="h-8 w-8 shrink-0 rounded-lg"
             >
