@@ -1,5 +1,5 @@
 import { db } from "@/db";
-import { feedback } from "@/db/schema";
+import { feedback, users } from "@/db/schema";
 import { and, eq, desc, count } from "drizzle-orm";
 import { Star } from "lucide-react";
 import Link from "next/link";
@@ -17,8 +17,10 @@ async function getTestimonialsData() {
         title: feedback.title,
         description: feedback.description,
         type: feedback.type,
+        userImage: users.image,
       })
       .from(feedback)
+      .leftJoin(users, eq(feedback.userId, users.id))
       .where(and(eq(feedback.isPublished, true), eq(feedback.allowPublicDisplay, true)))
       .orderBy(desc(feedback.createdAt))
       .limit(LANDING_LIMIT),
