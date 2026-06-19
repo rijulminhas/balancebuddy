@@ -50,6 +50,7 @@ export default async function ChatPage() {
       id: messages.id,
       senderId: messages.senderId,
       senderName: users.name,
+      senderImage: users.image,
       content: messages.content,
       type: messages.type,
       metadata: messages.metadata,
@@ -73,6 +74,7 @@ export default async function ChatPage() {
     .reverse()
     .map((m) => ({
       ...m,
+      senderImage: m.senderImage ?? null,
       type: m.type as "text" | "image",
       metadata: (m.metadata ?? null) as Record<string, unknown> | null,
       createdAt: m.createdAt.toISOString(),

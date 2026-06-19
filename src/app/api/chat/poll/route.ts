@@ -35,6 +35,7 @@ export async function GET(req: NextRequest) {
       id: messages.id,
       senderId: messages.senderId,
       senderName: users.name,
+      senderImage: users.image,
       content: messages.content,
       type: messages.type,
       metadata: messages.metadata,

@@ -162,11 +162,11 @@ function NavContent({
                   {unreadCount > 9 ? "9+" : unreadCount}
                 </span>
               )}
-              {href === "/chat" && unreadChat > 0 && (
+              {/* {href === "/chat" && unreadChat > 0 && (
                 <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[9px] font-bold text-white ring-2 ring-sidebar">
                   {unreadChat > 9 ? "9+" : unreadChat}
                 </span>
-              )}
+              )} */}
             </Link>
           );
 

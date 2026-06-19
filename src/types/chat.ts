@@ -4,6 +4,7 @@ export interface ChatMessage {
   id: string;
   senderId: string | null;
   senderName: string | null;
+  senderImage: string | null;
   content: string;
   type: MessageType;
   metadata: Record<string, unknown> | null;
