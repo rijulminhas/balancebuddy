@@ -5,12 +5,21 @@ import { messages, groupMembers, notifications, auditLogs, users } from "@/db/sc
 import { eq, and } from "drizzle-orm";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
+import { isSuperAdmin } from "@/lib/super-admin";
 import type { ActionResult } from "./auth";
 
 export async function resetGroupChat(
   userId: string,
   groupId: string
 ): Promise<ActionResult> {
+  const [requester] = await db
+    .select({ name: users.name, email: users.email })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+
+  const userIsSuperAdmin = isSuperAdmin(requester?.email);
+
   const [membership] = await db
     .select({ role: groupMembers.role })
     .from(groupMembers)
@@ -23,8 +32,10 @@ export async function resetGroupChat(
     )
     .limit(1);
 
-  if (!membership) return { success: false, error: "Not a member of this group" };
-  if (membership.role !== "owner" && membership.role !== "admin") {
+  if (!membership && !userIsSuperAdmin)
+    return { success: false, error: "Not a member of this group" };
+
+  if (!userIsSuperAdmin && membership!.role !== "owner" && membership!.role !== "admin") {
     return { success: false, error: "Only owners and admins can reset the group chat" };
   }
 
@@ -57,12 +68,6 @@ export async function resetGroupChat(
     .select({ userId: groupMembers.userId })
     .from(groupMembers)
     .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.status, "active")));
-
-  const [requester] = await db
-    .select({ name: users.name })
-    .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
 
   const memberIds = activeMembers.map((m) => m.userId);
   if (memberIds.length > 0) {

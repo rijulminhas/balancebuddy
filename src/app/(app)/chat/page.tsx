@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { getSession } from "@/lib/session";
 import { redirect } from "next/navigation";
 import { db } from "@/db";
-import { messages, groupMembers, users } from "@/db/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { messages, groupMembers, users, notifications } from "@/db/schema";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { ChatWindow } from "@/components/chat/chat-window";
+import { isSuperAdmin } from "@/lib/super-admin";
 
 export const metadata: Metadata = { title: "Chat" };
 export const dynamic = "force-dynamic";
@@ -30,6 +31,19 @@ export default async function ChatPage() {
   if (!membership) redirect("/groups");
 
   const { groupId } = membership;
+
+  // Mark all unread chat notifications as read when the user opens the chat page.
+  // Runs server-side — no extra client API call needed.
+  await db
+    .update(notifications)
+    .set({ isRead: true, readAt: new Date() })
+    .where(
+      and(
+        eq(notifications.userId, session.user.id),
+        eq(notifications.isRead, false),
+        sql`${notifications.data}->>'url' = '/chat'`,
+      ),
+    );
 
   const rows = await db
     .select({
@@ -71,6 +85,7 @@ export default async function ChatPage() {
       hasMoreInitial={hasMoreInitial}
       groupId={groupId}
       userRole={membership.role}
+      isSuperAdmin={isSuperAdmin(session.user.email)}
     />
   );
 }
