@@ -60,6 +60,7 @@ export default async function RootLayout({
     <html
       lang="en"
       className={`${dmSans.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col">
         <Providers session={session}>
