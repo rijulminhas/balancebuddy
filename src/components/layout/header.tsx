@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { NotificationBell } from "@/components/shared/notification-bell";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 interface HeaderProps {
   session: Session;
@@ -79,6 +80,7 @@ export function Header({ session, onMenuClick }: HeaderProps) {
         >
           <RefreshCw className="h-4 w-4" />
         </button>
+        <ThemeToggle />
         <NotificationBell />
 
         <DropdownMenu>

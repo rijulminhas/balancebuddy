@@ -129,10 +129,10 @@ export default async function LandingPage() {
   const session = await getSession();
 
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden">
+    <div className="flex min-h-screen flex-col bg-background text-foreground overflow-x-hidden pt-14">
 
       {/* ── Navigation ─────────────────────────────────────────────────── */}
-      <header className="sticky top-0 z-50 border-b bg-background/80 backdrop-blur-md">
+      <header className="fixed top-0 left-0 right-0 z-50 w-full border-b bg-background/80 backdrop-blur-md">
         <div className="mx-auto flex h-14 max-w-6xl items-center justify-between px-4">
           <div className="flex items-center gap-2 font-semibold">
             <div className="relative h-45 w-45 shrink-0 overflow-hidden">
