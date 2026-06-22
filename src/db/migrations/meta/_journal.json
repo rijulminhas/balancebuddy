@@ -64,6 +64,13 @@
       "when": 1750464000000,
       "tag": "0008_reactions_and_replies",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1750636800000,
+      "tag": "0009_group_history_dedup",
+      "breakpoints": true
     }
   ]
 }

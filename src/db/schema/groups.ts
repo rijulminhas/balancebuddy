@@ -70,11 +70,17 @@ export const groupHistory = pgTable("group_history", {
   groupName: varchar("group_name", { length: 255 }).notNull(),
   groupAddress: text("group_address"),
   role: groupMemberRoleEnum("role").notNull(),
-  leftAt: timestamp("left_at").defaultNow().notNull(),
+  firstJoinedAt: timestamp("first_joined_at").notNull(),
+  lastLeftAt: timestamp("last_left_at").defaultNow().notNull(),
+  joinCount: integer("join_count").default(1).notNull(),
   deletedByOwner: boolean("deleted_by_owner").default(false).notNull(),
   deletedAt: timestamp("deleted_at"),
   inviteCode: varchar("invite_code", { length: 20 }).notNull(),
-});
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+}, (t) => [
+  uniqueIndex("group_history_user_group_uidx").on(t.userId, t.groupId),
+]);
 
 export type Group = typeof groups.$inferSelect;
 export type NewGroup = typeof groups.$inferInsert;

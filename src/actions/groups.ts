@@ -224,7 +224,7 @@ export async function leaveGroup(
   groupId: string
 ): Promise<ActionResult> {
   const [member] = await db
-    .select({ id: groupMembers.id, role: groupMembers.role })
+    .select({ id: groupMembers.id, role: groupMembers.role, joinedAt: groupMembers.joinedAt })
     .from(groupMembers)
     .where(
       and(
@@ -268,15 +268,42 @@ export async function leaveGroup(
     .set({ status: "left", updatedAt: new Date() })
     .where(eq(groupMembers.id, member.id));
 
-  await db.insert(groupHistory).values({
-    userId,
-    groupId,
-    groupName: groupData.name,
-    groupAddress: groupData.address,
-    role: member.role,
-    leftAt: new Date(),
-    inviteCode: groupData.inviteCode,
-  });
+  const now = new Date();
+
+  const [existingHistory] = await db
+    .select({ id: groupHistory.id, joinCount: groupHistory.joinCount })
+    .from(groupHistory)
+    .where(and(eq(groupHistory.userId, userId), eq(groupHistory.groupId, groupId)))
+    .limit(1);
+
+  if (existingHistory) {
+    await db
+      .update(groupHistory)
+      .set({
+        groupName: groupData.name,
+        groupAddress: groupData.address,
+        role: member.role,
+        lastLeftAt: now,
+        joinCount: (existingHistory.joinCount ?? 1) + 1,
+        inviteCode: groupData.inviteCode,
+        deletedAt: null,
+        deletedByOwner: false,
+        updatedAt: now,
+      })
+      .where(eq(groupHistory.id, existingHistory.id));
+  } else {
+    await db.insert(groupHistory).values({
+      userId,
+      groupId,
+      groupName: groupData.name,
+      groupAddress: groupData.address,
+      role: member.role,
+      firstJoinedAt: member.joinedAt ?? now,
+      lastLeftAt: now,
+      joinCount: 1,
+      inviteCode: groupData.inviteCode,
+    });
+  }
 
   const [leavingUser] = await db
     .select({ name: users.name })
@@ -320,7 +347,7 @@ export async function transferOwnershipAndLeave(
   }
 
   const [requesterMember] = await db
-    .select({ id: groupMembers.id, role: groupMembers.role })
+    .select({ id: groupMembers.id, role: groupMembers.role, joinedAt: groupMembers.joinedAt })
     .from(groupMembers)
     .where(
       and(
@@ -377,15 +404,42 @@ export async function transferOwnershipAndLeave(
     .where(eq(groups.id, groupId))
     .limit(1);
 
-  await db.insert(groupHistory).values({
-    userId: requesterId,
-    groupId,
-    groupName: groupData.name,
-    groupAddress: groupData.address,
-    role: "owner",
-    leftAt: new Date(),
-    inviteCode: groupData.inviteCode,
-  });
+  const now = new Date();
+
+  const [existingHistory] = await db
+    .select({ id: groupHistory.id, joinCount: groupHistory.joinCount })
+    .from(groupHistory)
+    .where(and(eq(groupHistory.userId, requesterId), eq(groupHistory.groupId, groupId)))
+    .limit(1);
+
+  if (existingHistory) {
+    await db
+      .update(groupHistory)
+      .set({
+        groupName: groupData.name,
+        groupAddress: groupData.address,
+        role: "owner",
+        lastLeftAt: now,
+        joinCount: (existingHistory.joinCount ?? 1) + 1,
+        inviteCode: groupData.inviteCode,
+        deletedAt: null,
+        deletedByOwner: false,
+        updatedAt: now,
+      })
+      .where(eq(groupHistory.id, existingHistory.id));
+  } else {
+    await db.insert(groupHistory).values({
+      userId: requesterId,
+      groupId,
+      groupName: groupData.name,
+      groupAddress: groupData.address,
+      role: "owner",
+      firstJoinedAt: requesterMember.joinedAt ?? now,
+      lastLeftAt: now,
+      joinCount: 1,
+      inviteCode: groupData.inviteCode,
+    });
+  }
 
   const remainingMembers = await db
     .select({ userId: groupMembers.userId })
@@ -499,7 +553,7 @@ export async function getGroupHistory(
     .select()
     .from(groupHistory)
     .where(and(eq(groupHistory.userId, userId), isNull(groupHistory.deletedAt)))
-    .orderBy(desc(groupHistory.leftAt));
+    .orderBy(desc(groupHistory.lastLeftAt));
   return { success: true, data: history };
 }
 
