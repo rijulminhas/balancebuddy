@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { format } from "date-fns";
-import { Trash2, Reply, SmilePlus } from "lucide-react";
+import { Trash2, Reply, SmilePlus, Receipt, CheckSquare, ArrowLeftRight, Info } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -187,6 +187,46 @@ export function MessageBubble({
   const time = format(new Date(message.createdAt), "hh:mm a");
   const name = message.senderName ?? "Unknown";
   const isImage = message.type === "image";
+
+  // System / activity messages render as centred pill — no avatar, no actions
+  if (
+    message.type === "expense_update" ||
+    message.type === "chore_update" ||
+    message.type === "settlement_update" ||
+    message.type === "system"
+  ) {
+    const pillStyle = {
+      expense_update: {
+        wrapper: "bg-emerald-500/10 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+        icon: <Receipt className="h-3 w-3 shrink-0" />,
+      },
+      chore_update: {
+        wrapper: "bg-rose-500/10 border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300",
+        icon: <CheckSquare className="h-3 w-3 shrink-0" />,
+      },
+      settlement_update: {
+        wrapper: "bg-blue-500/10 border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-300",
+        icon: <ArrowLeftRight className="h-3 w-3 shrink-0" />,
+      },
+      system: {
+        wrapper: "bg-muted border-border text-muted-foreground",
+        icon: <Info className="h-3 w-3 shrink-0" />,
+      },
+    }[message.type];
+
+    return (
+      <div className="flex flex-col items-center gap-0.5 py-0.5">
+        <div className={cn(
+          "flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium max-w-[85%] text-center",
+          pillStyle.wrapper,
+        )}>
+          {pillStyle.icon}
+          <span>{message.content}</span>
+        </div>
+        <span className="text-[9px] text-muted-foreground/60">{time}</span>
+      </div>
+    );
+  }
 
   const handleReact = onReact
     ? (messageId: string, emoji: string) => onReact(messageId, emoji)

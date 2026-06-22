@@ -13,6 +13,7 @@ import { eq, and, inArray, or } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
+import { insertSystemMessage } from "@/lib/system-message";
 import type { ActionResult } from "./auth";
 
 const expenseSchema = z.object({
@@ -126,6 +127,12 @@ export async function createExpense(
       { data: { expenseId: expense.id }, url: `/expenses/${expense.id}` }
     );
   }
+
+  await insertSystemMessage(
+    groupId,
+    "expense_update",
+    `${payer?.name ?? "Someone"} added an expense — ${title} ₹${amount.toLocaleString("en-IN", { minimumFractionDigits: 2 })}`
+  );
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");

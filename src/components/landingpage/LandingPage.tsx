@@ -38,6 +38,16 @@ import {
   Mail,
   Hash,
   Copy,
+  MessageSquare,
+  Send,
+  Wallet,
+  TrendingUp,
+  BarChart3,
+  Target,
+  CreditCard,
+  PiggyBank,
+  LineChart,
+  MessageCircle,
 } from "lucide-react";
 
 const modules = [
@@ -142,6 +152,8 @@ export default async function LandingPage() {
             <a href="#invite" className="hover:text-foreground transition-colors">Invite</a>
             <a href="#expenses" className="hover:text-foreground transition-colors">Expenses</a>
             <a href="#chores" className="hover:text-foreground transition-colors">Chores</a>
+            <a href="#chat" className="hover:text-foreground transition-colors">Chat</a>
+            <a href="#personal-finance" className="hover:text-foreground transition-colors">Personal Finance</a>
             <a href="#pwa" className="hover:text-foreground transition-colors">Install App</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -710,6 +722,108 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      {/* ── Group Chat Module ──────────────────────────────────────────── */}
+      <section id="chat" className="border-t bg-muted/30 px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-3 text-center text-xs font-medium uppercase tracking-widest text-primary">Group Chat</div>
+          <h2 className="mb-3 text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+            Stay connected with your group
+          </h2>
+          <p className="mx-auto mb-12 max-w-lg text-center text-sm text-muted-foreground">
+            A built-in real-time chat keeps everyone in the loop — no juggling WhatsApp and spreadsheets separately.
+          </p>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Mock Chat UI */}
+            <div className="rounded-2xl border bg-card p-5 shadow-sm">
+              <div className="mb-4 flex items-center gap-3 border-b pb-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10">
+                  <MessageSquare className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold">Flat 4B Chat</div>
+                  <div className="text-xs text-muted-foreground">4 members active</div>
+                </div>
+              </div>
+              <div className="space-y-3 min-h-[240px]">
+                {/* System message */}
+                <div className="flex justify-center">
+                  <span className="rounded-full bg-muted px-3 py-1 text-[10px] text-muted-foreground">
+                    Rahul added expense — Electricity Bill ₹2,400
+                  </span>
+                </div>
+                {/* Message from other */}
+                <div className="flex gap-2">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-xs font-bold text-blue-600">P</div>
+                  <div className="max-w-[75%]">
+                    <div className="rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-xs">Splitting equally with everyone?</div>
+                    <div className="mt-0.5 text-[10px] text-muted-foreground">Priya · 2:41 PM</div>
+                  </div>
+                </div>
+                {/* My message */}
+                <div className="flex flex-row-reverse gap-2">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">R</div>
+                  <div className="max-w-[75%]">
+                    <div className="rounded-2xl rounded-tr-sm bg-primary px-3 py-2 text-xs text-primary-foreground">Yes, ₹600 each!</div>
+                    <div className="mt-0.5 text-right text-[10px] text-muted-foreground">You · 2:42 PM</div>
+                  </div>
+                </div>
+                {/* System message */}
+                <div className="flex justify-center">
+                  <span className="rounded-full bg-muted px-3 py-1 text-[10px] text-muted-foreground">
+                    Priya completed chore — Clean Kitchen
+                  </span>
+                </div>
+                {/* Another message */}
+                <div className="flex gap-2">
+                  <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-xs font-bold text-emerald-600">A</div>
+                  <div className="max-w-[75%]">
+                    <div className="rounded-2xl rounded-tl-sm bg-muted px-3 py-2 text-xs">Anyone getting groceries today?</div>
+                    <div className="mt-0.5 text-[10px] text-muted-foreground">Amit · 3:15 PM</div>
+                  </div>
+                </div>
+              </div>
+              {/* Message Input */}
+              <div className="mt-4 flex items-center gap-2 rounded-xl border bg-background px-3 py-2">
+                <span className="flex-1 text-xs text-muted-foreground">Type a message…</span>
+                <div className="flex h-6 w-6 items-center justify-center rounded-lg bg-primary">
+                  <Send className="h-3 w-3 text-primary-foreground" />
+                </div>
+              </div>
+            </div>
+            {/* Features */}
+            <div>
+              <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                <MessageSquare className="h-3 w-3" /> Real-time Messaging
+              </div>
+              <h3 className="mb-4 text-xl font-semibold tracking-tight">Talk, coordinate, and stay updated</h3>
+              <p className="mb-6 text-sm text-muted-foreground leading-relaxed">
+                Every group has a dedicated chat room. Discuss expenses, coordinate chores, and share updates — plus automatic system messages whenever something changes in the group.
+              </p>
+              <ul className="mb-6 space-y-3 text-sm">
+                {[
+                  "Real-time messaging powered by WebSockets",
+                  "System messages auto-appear for new expenses, chore completions, and settlements",
+                  "See who is active in the group",
+                  "Full message history preserved across sessions",
+                  "Accessible from the sidebar under Chat",
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2 text-muted-foreground">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" />
+                    {item}
+                  </li>
+                ))}
+              </ul>
+              <div className="rounded-xl border bg-muted/40 p-4">
+                <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-muted-foreground">Automatic System Messages</div>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  When a member adds an expense, settles a debt, completes a chore, or joins the group — a system message appears in chat automatically, so everyone is always informed without any extra effort.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* ── Activity + Reminders + Shopping ────────────────────────────── */}
       <section className="border-t bg-muted/30 px-4 py-20">
         <div className="mx-auto max-w-5xl">
@@ -820,6 +934,70 @@ export default async function LandingPage() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Personal Finance Module ────────────────────────────────────── */}
+      <section id="personal-finance" className="px-4 py-20">
+        <div className="mx-auto max-w-5xl">
+          <div className="mb-3 text-center text-xs font-medium uppercase tracking-widest text-primary">Personal Finance</div>
+          <h2 className="mb-3 text-center text-2xl font-semibold tracking-tight sm:text-3xl">
+            Your personal financial dashboard
+          </h2>
+          <p className="mx-auto mb-8 max-w-lg text-center text-sm text-muted-foreground">
+            Beyond group expenses — track your own income, investments, savings goals, and loans in a completely private space.
+          </p>
+
+          {/* How to Access */}
+          <div className="mx-auto mb-10 max-w-2xl rounded-2xl border bg-card p-5 shadow-sm">
+            <div className="mb-4 flex items-center gap-2 text-sm font-semibold">
+              <Wallet className="h-4 w-4 text-primary" /> How to open Personal Finance
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">1</div>
+              <div className="flex-1 rounded-xl border bg-muted/40 px-4 py-3">
+                <div className="mb-1 text-xs text-muted-foreground">App Header — top navigation bar</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <div className="rounded-md bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">Personal Finance</div>
+                  <span className="text-xs text-muted-foreground">← Click this button in the header to switch modules</span>
+                </div>
+              </div>
+            </div>
+            <p className="mt-3 pl-0 text-xs text-muted-foreground sm:pl-11">
+              The <span className="font-semibold text-foreground">Personal Finance</span> button lives in the app header. One click switches you from your group dashboard to your own private financial space — no one else can see your data.
+            </p>
+          </div>
+
+          {/* Sub-modules grid */}
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            {[
+              { icon: TrendingUp, title: "Add Income", desc: "Log salary, freelance earnings, or any income source with amount, date, and category.", color: "text-emerald-500", bg: "bg-emerald-500/10" },
+              { icon: Receipt, title: "Add Expense", desc: "Track personal spending by category — food, transport, bills, entertainment, and more.", color: "text-rose-500", bg: "bg-rose-500/10" },
+              { icon: BarChart3, title: "Investments", desc: "Record stocks, mutual funds, FDs, and other investments to keep your portfolio in one view.", color: "text-blue-500", bg: "bg-blue-500/10" },
+              { icon: Target, title: "Saving Goals", desc: "Set targets — vacation fund, emergency savings, gadget — and watch progress in real time.", color: "text-amber-500", bg: "bg-amber-500/10" },
+              { icon: CreditCard, title: "Loans & EMI", desc: "Track outstanding loan amounts, monthly EMI schedules, and upcoming due dates.", color: "text-indigo-500", bg: "bg-indigo-500/10" },
+              { icon: PiggyBank, title: "Net Worth", desc: "Auto-calculated from your assets and liabilities — see your complete financial health at a glance.", color: "text-violet-500", bg: "bg-violet-500/10" },
+              { icon: LineChart, title: "Analytics", desc: "Visual charts showing income vs expenses, category breakdowns, and month-over-month spending trends.", color: "text-cyan-500", bg: "bg-cyan-500/10" },
+            ].map(({ icon: Icon, title, desc, color, bg }) => (
+              <div key={title} className="rounded-2xl border bg-card p-5 shadow-sm">
+                <div className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${bg}`}>
+                  <Icon className={`h-5 w-5 ${color}`} />
+                </div>
+                <div className="mb-1 text-sm font-semibold">{title}</div>
+                <div className="text-xs text-muted-foreground leading-relaxed">{desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-xl border bg-primary/5 px-5 py-4">
+            <div className="flex items-start gap-3">
+              <Shield className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+              <p className="text-xs text-muted-foreground">
+                <span className="font-semibold text-foreground">100% Private: </span>
+                Your personal finance data is visible only to you. Group members cannot see your income, investments, loan details, or personal expenses.
+              </p>
             </div>
           </div>
         </div>
@@ -978,6 +1156,58 @@ export default async function LandingPage() {
             <p className="text-xs text-muted-foreground">
               Once installed, BalanceBuddy syncs in the background, delivers push notifications, and works even when your internet drops — just like a real app, no app store needed.
             </p>
+          </div>
+        </div>
+      </section>
+
+      {/* ── Feedback ───────────────────────────────────────────────────── */}
+      <section className="px-4 py-16">
+        <div className="mx-auto max-w-3xl">
+          <div className="rounded-2xl border bg-card p-6 shadow-sm">
+            <div className="flex flex-col items-center gap-5 text-center sm:flex-row sm:text-left">
+              <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10">
+                <MessageCircle className="h-7 w-7 text-amber-500" />
+              </div>
+              <div className="flex-1">
+                <h3 className="mb-1.5 text-base font-semibold">Share your feedback with us</h3>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Your input helps us improve. To give feedback, click your{" "}
+                  <span className="font-medium text-foreground">profile picture</span> at the top-right of the header
+                  to open the dropdown, then tap{" "}
+                  <span className="font-medium text-foreground">Give Feedback</span>.
+                </p>
+              </div>
+              {/* Mock profile dropdown */}
+              <div className="w-44 shrink-0 rounded-xl border bg-background p-2 shadow-md text-left">
+                <div className="mb-2 flex items-center gap-2 border-b pb-2 px-1">
+                  <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">U</div>
+                  <div>
+                    <div className="text-xs font-semibold leading-none">Your Name</div>
+                    <div className="text-[10px] text-muted-foreground">you@email.com</div>
+                  </div>
+                </div>
+                <div className="space-y-0.5">
+                  {[
+                    { label: "Profile", highlight: false },
+                    { label: "Settings", highlight: false },
+                    { label: "Give Feedback", highlight: true },
+                    { label: "Sign Out", highlight: false },
+                  ].map(({ label, highlight }) => (
+                    <div
+                      key={label}
+                      className={`flex items-center gap-2 rounded-md px-2 py-1.5 text-xs ${
+                        highlight
+                          ? "bg-amber-500/10 font-semibold text-amber-600"
+                          : "text-muted-foreground"
+                      }`}
+                    >
+                      {highlight && <MessageCircle className="h-3 w-3 shrink-0" />}
+                      {label}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>

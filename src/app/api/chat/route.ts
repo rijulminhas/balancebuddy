@@ -9,7 +9,7 @@ import { notifyUsers } from "@/lib/notify";
 import type { ReactionGroup, ReplyPreview, MessageType } from "@/types/chat";
 
 const PAGE_SIZE = 50;
-const CHAT_TYPES = ["text", "image"] as const;
+const CHAT_TYPES = ["text", "image", "system", "expense_update", "chore_update", "settlement_update"] as const;
 
 async function getActiveGroupId(userId: string): Promise<string | null> {
   const [membership] = await db

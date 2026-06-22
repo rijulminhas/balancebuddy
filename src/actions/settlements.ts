@@ -14,6 +14,7 @@ import { eq, and, asc, desc, inArray, count, lt } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
+import { insertSystemMessage } from "@/lib/system-message";
 import type { ActionResult } from "./auth";
 
 export interface RawDebt {
@@ -338,19 +339,28 @@ export async function confirmPayment(
     Number(settlement.amount)
   );
 
-  const [confirmingUser] = await db
-    .select({ name: users.name })
+  const settlementUsers = await db
+    .select({ id: users.id, name: users.name })
     .from(users)
-    .where(eq(users.id, userId))
-    .limit(1);
+    .where(inArray(users.id, [userId, settlement.fromUserId]));
+
+  const userNameMap = new Map(settlementUsers.map((u) => [u.id, u.name]));
+  const confirmingUserName = userNameMap.get(userId) ?? "The recipient";
+  const payerName = userNameMap.get(settlement.fromUserId) ?? "Someone";
 
   await notifyUsers(
     [settlement.fromUserId],
     settlement.groupId,
     "payment_confirmed",
     "Payment Confirmed",
-    `${confirmingUser?.name ?? "The recipient"} has confirmed receipt of your payment of ₹${Number(settlement.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}.`,
+    `${confirmingUserName} has confirmed receipt of your payment of ₹${Number(settlement.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })}.`,
     { data: { settlementId }, url: "/settlements" }
+  );
+
+  await insertSystemMessage(
+    settlement.groupId,
+    "settlement_update",
+    `${payerName} settled ₹${Number(settlement.amount).toLocaleString("en-IN", { minimumFractionDigits: 2 })} with ${confirmingUserName}`
   );
 
   await db.insert(auditLogs).values({

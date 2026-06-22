@@ -6,6 +6,7 @@ import { eq, and } from "drizzle-orm";
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { notifyUsers } from "@/lib/notify";
+import { insertSystemMessage } from "@/lib/system-message";
 import type { ActionResult } from "./auth";
 
 const choreSchema = z.object({
@@ -197,6 +198,12 @@ export async function updateChoreStatus(
         { url: "/chores" }
       );
     }
+
+    await insertSystemMessage(
+      chore.groupId,
+      "chore_update",
+      `${completer?.name ?? "Someone"} completed a chore — ${chore.title}`
+    );
 
     // Spawn next occurrence for recurring chores
     if (chore.isRecurring && chore.frequency !== "once") {

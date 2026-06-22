@@ -16,7 +16,7 @@ async function getActiveGroupId(userId: string): Promise<string | null> {
   return membership?.groupId ?? null;
 }
 
-const CHAT_TYPES = ["text", "image"] as const;
+const CHAT_TYPES = ["text", "image", "system", "expense_update", "chore_update", "settlement_update"] as const;
 
 function groupReactionsByMessage(
   raw: { messageId: string; emoji: string; userId: string }[],

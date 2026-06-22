@@ -1,4 +1,4 @@
-export type MessageType = "text" | "image";
+export type MessageType = "text" | "image" | "system" | "expense_update" | "chore_update" | "settlement_update";
 
 export interface ReactionGroup {
   emoji: string;
