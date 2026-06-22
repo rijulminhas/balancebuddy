@@ -56,6 +56,7 @@ export function ChatWindow({
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
   const [replyTo, setReplyTo] = useState<ChatMessage | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
   const isPrivileged = isSuperAdmin || userRole === "owner" || userRole === "admin";
   const isBusy = isSending || isUploading;
@@ -299,16 +300,8 @@ export function ChatWindow({
     setPendingMedia({ url, type: "gif" });
   }
 
-  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
-
-    if (
-      !["image/jpeg", "image/png", "image/webp", "image/gif"].includes(
-        file.type,
-      )
-    ) {
+  async function uploadImageFile(file: File) {
+    if (!["image/jpeg", "image/png", "image/webp", "image/gif"].includes(file.type)) {
       toast.error("Only JPEG, PNG, WebP and GIF images are allowed.");
       return;
     }
@@ -348,6 +341,49 @@ export function ChatWindow({
     }
   }
 
+  async function handleImageSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await uploadImageFile(file);
+  }
+
+  async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const imageItem = Array.from(e.clipboardData.items).find((item) =>
+      item.type.startsWith("image/"),
+    );
+    if (!imageItem) return;
+    e.preventDefault();
+    const file = imageItem.getAsFile();
+    if (!file) return;
+    await uploadImageFile(file);
+  }
+
+  function handleDragOver(e: React.DragEvent) {
+    const hasImage = Array.from(e.dataTransfer.items).some((item) =>
+      item.type.startsWith("image/"),
+    );
+    if (!hasImage) return;
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false);
+    }
+  }
+
+  async function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragging(false);
+    const file = Array.from(e.dataTransfer.files).find((f) =>
+      f.type.startsWith("image/"),
+    );
+    if (!file) return;
+    await uploadImageFile(file);
+  }
+
   return (
     <div className="flex flex-col h-[calc(95vh-6rem)]">
       <div className="flex items-center justify-between mb-4 shrink-0">
@@ -381,7 +417,18 @@ export function ChatWindow({
         </div>
       </div>
 
-      <Card className="flex flex-col flex-1 min-h-0 overflow-hidden">
+      <Card
+        className="relative flex flex-col flex-1 min-h-0 overflow-hidden"
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => void handleDrop(e)}
+      >
+        {isDragging && (
+          <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed border-primary bg-background/80 backdrop-blur-sm pointer-events-none">
+            <ImagePlus className="h-10 w-10 text-primary" />
+            <p className="text-sm font-medium text-primary">Drop image to upload</p>
+          </div>
+        )}
         {hasMore && (
           <div className="flex justify-center py-2 border-b shrink-0">
             <Button
@@ -478,6 +525,7 @@ export function ChatWindow({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
+              onPaste={(e) => void handlePaste(e)}
               placeholder={replyTo ? "Write a reply…" : "Type a message…"}
               className="flex-1 min-h-[36px] max-h-[120px] resize-none border-0 shadow-none focus-visible:ring-0 bg-transparent text-sm py-1.5 px-1 placeholder:text-muted-foreground"
               rows={1}
@@ -527,7 +575,7 @@ export function ChatWindow({
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
-            Enter to send · Shift+Enter for new line
+            Enter to send · Shift+Enter for new line · Ctrl+V to paste image
             {replyTo && " · Esc to cancel reply"}
           </p>
         </div>
