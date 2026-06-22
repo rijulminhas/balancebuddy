@@ -4,6 +4,7 @@ export interface ReactionGroup {
   emoji: string;
   count: number;
   userIds: string[];
+  userNames: string[];
 }
 
 export interface ReplyPreview {
