@@ -26,7 +26,7 @@ export async function GroupHistory({ title = "Group History" }: GroupHistoryProp
     .select()
     .from(groupHistory)
     .where(and(eq(groupHistory.userId, userId), isNull(groupHistory.deletedAt)))
-    .orderBy(desc(groupHistory.leftAt));
+    .orderBy(desc(groupHistory.lastLeftAt));
 
   const [activeMembership] = await db
     .select({ groupId: groupMembers.groupId })
@@ -83,7 +83,7 @@ export async function GroupHistory({ title = "Group History" }: GroupHistoryProp
                       <p className="mt-0.5 text-xs text-muted-foreground">{entry.groupAddress}</p>
                     )}
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Left on {new Date(entry.leftAt).toLocaleDateString()}
+                      Left on {new Date(entry.lastLeftAt).toLocaleDateString()}
                     </p>
                   </div>
                   <div className="flex shrink-0 items-center gap-2">

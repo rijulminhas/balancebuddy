@@ -33,7 +33,7 @@ export async function GroupDetail({ id }: GroupDetailProps) {
   const [historyEntry] = await db
     .select({
       role: groupHistory.role,
-      leftAt: groupHistory.leftAt,
+      lastLeftAt: groupHistory.lastLeftAt,
       inviteCode: groupHistory.inviteCode,
     })
     .from(groupHistory)
@@ -93,7 +93,7 @@ export async function GroupDetail({ id }: GroupDetailProps) {
       <div className="flex items-center gap-2 rounded-lg border border-dashed bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
         <Lock className="h-3.5 w-3.5 shrink-0" />
         <span>
-          You left this group on {new Date(historyEntry.leftAt).toLocaleDateString()}. This is a
+          You left this group on {new Date(historyEntry.lastLeftAt).toLocaleDateString()}. This is a
           read-only view.
           {isInGroup
             ? " Leave your current group to be able to rejoin."
