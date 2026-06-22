@@ -18,6 +18,12 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import type { ChatMessage, ReactionGroup } from "@/types/chat";
 
@@ -93,27 +99,41 @@ function ReactionsDisplay({
 }) {
   if (!reactions.length) return null;
   return (
-    <div className="flex flex-wrap gap-1 mt-1">
-      {reactions.map((r) => {
-        const isOwn = r.userIds.includes(currentUserId);
-        return (
-          <button
-            key={r.emoji}
-            type="button"
-            onClick={() => onReact(messageId, r.emoji)}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
-              isOwn
-                ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
-                : "border-border bg-background hover:bg-muted text-foreground",
-            )}
-          >
-            <span>{r.emoji}</span>
-            <span>{r.count}</span>
-          </button>
-        );
-      })}
-    </div>
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {reactions.map((r) => {
+          const isOwn = r.userIds.includes(currentUserId);
+          const tooltipLabel = r.userNames
+            .map((name, i) => (r.userIds[i] === currentUserId ? "You" : name))
+            .join("\n");
+          return (
+            <Tooltip key={r.emoji}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onReact(messageId, r.emoji)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
+                    isOwn
+                      ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                      : "border-border bg-background hover:bg-muted text-foreground",
+                  )}
+                >
+                  <span>{r.emoji}</span>
+                  <span>{r.count}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="left"
+                className="whitespace-pre-line text-center max-w-45"
+              >
+                {tooltipLabel}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
   );
 }
 

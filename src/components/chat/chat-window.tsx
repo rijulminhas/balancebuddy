@@ -27,6 +27,7 @@ const POLL_MS = 5000;
 interface ChatWindowProps {
   initialMessages: ChatMessage[];
   currentUserId: string;
+  currentUserName: string;
   hasMoreInitial: boolean;
   groupId: string;
   userRole: "owner" | "admin" | "member";
@@ -36,6 +37,7 @@ interface ChatWindowProps {
 export function ChatWindow({
   initialMessages,
   currentUserId,
+  currentUserName,
   hasMoreInitial,
   groupId,
   userRole,
@@ -237,7 +239,12 @@ export function ChatWindow({
             reactions: m.reactions
               .map((r) =>
                 r.emoji === emoji
-                  ? { ...r, count: r.count - 1, userIds: r.userIds.filter((id) => id !== currentUserId) }
+                  ? {
+                      ...r,
+                      count: r.count - 1,
+                      userIds: r.userIds.filter((id) => id !== currentUserId),
+                      userNames: r.userNames.filter((_, i) => r.userIds[i] !== currentUserId),
+                    }
                   : r,
               )
               .filter((r) => r.count > 0),
@@ -249,7 +256,12 @@ export function ChatWindow({
             ...m,
             reactions: m.reactions.map((r) =>
               r.emoji === emoji
-                ? { ...r, count: r.count + 1, userIds: [...r.userIds, currentUserId] }
+                ? {
+                    ...r,
+                    count: r.count + 1,
+                    userIds: [...r.userIds, currentUserId],
+                    userNames: [...r.userNames, currentUserName],
+                  }
                 : r,
             ),
           };
@@ -257,7 +269,10 @@ export function ChatWindow({
 
         return {
           ...m,
-          reactions: [...m.reactions, { emoji, count: 1, userIds: [currentUserId] }],
+          reactions: [
+            ...m.reactions,
+            { emoji, count: 1, userIds: [currentUserId], userNames: [currentUserName] },
+          ],
         };
       }),
     );

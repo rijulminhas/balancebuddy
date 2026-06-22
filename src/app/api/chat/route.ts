@@ -22,23 +22,26 @@ async function getActiveGroupId(userId: string): Promise<string | null> {
 }
 
 function groupReactionsByMessage(
-  raw: { messageId: string; emoji: string; userId: string }[],
+  raw: { messageId: string; emoji: string; userId: string; userName: string | null }[],
 ): Map<string, ReactionGroup[]> {
-  const emojiMap = new Map<string, Map<string, string[]>>();
+  const emojiMap = new Map<string, Map<string, { userIds: string[]; userNames: string[] }>>();
   for (const r of raw) {
     if (!emojiMap.has(r.messageId)) emojiMap.set(r.messageId, new Map());
     const byEmoji = emojiMap.get(r.messageId)!;
-    if (!byEmoji.has(r.emoji)) byEmoji.set(r.emoji, []);
-    byEmoji.get(r.emoji)!.push(r.userId);
+    if (!byEmoji.has(r.emoji)) byEmoji.set(r.emoji, { userIds: [], userNames: [] });
+    const entry = byEmoji.get(r.emoji)!;
+    entry.userIds.push(r.userId);
+    entry.userNames.push(r.userName ?? "Unknown");
   }
   const result = new Map<string, ReactionGroup[]>();
   for (const [msgId, byEmoji] of emojiMap) {
     result.set(
       msgId,
-      Array.from(byEmoji.entries()).map(([emoji, userIds]) => ({
+      Array.from(byEmoji.entries()).map(([emoji, { userIds, userNames }]) => ({
         emoji,
         count: userIds.length,
         userIds,
+        userNames,
       })),
     );
   }
@@ -94,8 +97,10 @@ export async function GET(req: NextRequest) {
             messageId: messageReactions.messageId,
             emoji: messageReactions.emoji,
             userId: messageReactions.userId,
+            userName: users.name,
           })
           .from(messageReactions)
+          .leftJoin(users, eq(messageReactions.userId, users.id))
           .where(inArray(messageReactions.messageId, messageIds))
       : Promise.resolve([]),
     replyToIds.length
