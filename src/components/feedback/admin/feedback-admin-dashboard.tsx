@@ -295,7 +295,7 @@ export function FeedbackAdminDashboard({ items, analytics }: Props) {
                         <Badge variant="outline" className={cn("text-[10px] px-1.5 py-0", STATUS_COLORS[item.status])}>
                           {item.status}
                         </Badge>
-                        {item.isPublished && (
+                        {item.isPublished && item.status !== "PUBLISHED" && (
                           <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-200 text-[10px] px-1.5 py-0">
                             Published
                           </Badge>
