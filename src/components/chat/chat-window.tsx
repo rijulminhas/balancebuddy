@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,8 +21,7 @@ import { ResetChatModal } from "./reset-chat-modal";
 import { EmojiPickerButton } from "./emoji-picker";
 import { GifPickerButton } from "./gif-picker";
 import type { ChatMessage, MessageType } from "@/types/chat";
-
-const POLL_MS = 5000;
+import { useChatSync } from "@/hooks/use-chat-sync";
 
 interface ChatWindowProps {
   initialMessages: ChatMessage[];
@@ -51,7 +50,6 @@ export function ChatWindow({
     url: string;
     type: "image" | "gif";
   } | null>(null);
-  const [isPolling, setIsPolling] = useState(false);
   const [hasMore, setHasMore] = useState(hasMoreInitial);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [showResetModal, setShowResetModal] = useState(false);
@@ -64,37 +62,17 @@ export function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const lastTsRef = useRef<string>(
+
+  const { isPolling, advanceTs, resetSync } = useChatSync(
+    groupId,
     initialMessages.at(-1)?.createdAt ?? new Date(0).toISOString(),
-  );
-  // Tracks the timestamp of the last poll tick for updatedAt-based change detection
-  const lastPollAtRef = useRef<string>(new Date().toISOString());
-
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [msgList.length]);
-
-  const poll = useCallback(async () => {
-    const pollTime = new Date().toISOString();
-    setIsPolling(true);
-    try {
-      const res = await fetch(
-        `/api/chat/poll?since=${encodeURIComponent(lastTsRef.current)}&updatedSince=${encodeURIComponent(lastPollAtRef.current)}`,
-      );
-      if (!res.ok) return;
-      const data = (await res.json()) as { messages: ChatMessage[] };
-      if (!data.messages.length) return;
-
+    (incoming) => {
       setMsgList((prev) => {
         const seenIds = new Set(prev.map((m) => m.id));
-        const fresh = data.messages.filter((m) => !seenIds.has(m.id));
-        const updates = data.messages.filter((m) => seenIds.has(m.id));
+        const fresh = incoming.filter((m) => !seenIds.has(m.id));
+        const updates = incoming.filter((m) => seenIds.has(m.id));
 
         if (!fresh.length && !updates.length) return prev;
-
-        if (fresh.length) {
-          lastTsRef.current = fresh.at(-1)!.createdAt;
-        }
 
         // Merge reaction/reply updates into existing messages
         if (updates.length) {
@@ -105,16 +83,12 @@ export function ChatWindow({
 
         return [...prev, ...fresh];
       });
-    } finally {
-      setIsPolling(false);
-      lastPollAtRef.current = pollTime;
-    }
-  }, []);
+    },
+  );
 
   useEffect(() => {
-    const id = setInterval(poll, POLL_MS);
-    return () => clearInterval(id);
-  }, [poll]);
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgList.length]);
 
   async function loadOlder() {
     if (!msgList.length || isLoadingMore) return;
@@ -152,7 +126,7 @@ export function ChatWindow({
     const msg = (await res.json()) as ChatMessage;
     setMsgList((prev) => {
       if (prev.some((m) => m.id === msg.id)) return prev;
-      lastTsRef.current = msg.createdAt;
+      advanceTs(msg.createdAt);
       return [...prev, msg];
     });
   }
@@ -590,8 +564,7 @@ export function ChatWindow({
           onSuccess={() => {
             setMsgList([]);
             setHasMore(false);
-            lastTsRef.current = new Date().toISOString();
-            lastPollAtRef.current = new Date().toISOString();
+            resetSync();
           }}
         />
       )}

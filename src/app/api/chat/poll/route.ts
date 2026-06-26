@@ -57,7 +57,10 @@ export async function GET(req: NextRequest) {
   const sinceDate = new Date(since);
   if (isNaN(sinceDate.getTime())) return NextResponse.json({ messages: [] });
 
-  const groupId = await getActiveGroupId(session.user.id);
+  // Use the groupId passed by the client to skip a DB round-trip.
+  // Fall back to a DB lookup only if the param is missing (backwards compat).
+  const groupIdParam = req.nextUrl.searchParams.get("groupId");
+  const groupId = groupIdParam ?? (await getActiveGroupId(session.user.id));
   if (!groupId) return NextResponse.json({ messages: [] });
 
   const updatedSinceDate =

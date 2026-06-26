@@ -270,7 +270,7 @@ export function Sidebar({ mobileOpen = false, onMobileClose, isSuperAdmin = fals
         .catch(() => {});
     };
     load();
-    const id = setInterval(load, 60_000);
+    const id = setInterval(load, 300_000);
     return () => clearInterval(id);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
