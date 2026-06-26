@@ -68,12 +68,26 @@ io.use((socket: Socket, next) => {
   }
 });
 
+// ── Per-group presence: userId → { name, picture } ─────────────────────────
+const groupPresence = new Map<string, Map<string, { name: string | null; picture: string | null }>>();
+
+function getPresenceList(gId: string) {
+  const map = groupPresence.get(gId);
+  if (!map) return [];
+  return Array.from(map.entries()).map(([id, info]) => ({ userId: id, name: info.name, picture: info.picture }));
+}
+
 // ── Connection ───────────────────────────────────────────────────────────────
 io.on("connection", (rawSocket: Socket) => {
   const socket = rawSocket as Socket & { user: AuthPayload };
   const { sub: userId, name: userName, picture: userImage, groupId } = socket.user;
 
   void socket.join(groupId);
+
+  // Track presence
+  if (!groupPresence.has(groupId)) groupPresence.set(groupId, new Map());
+  groupPresence.get(groupId)!.set(userId, { name: userName ?? null, picture: userImage ?? null });
+  io.to(groupId).emit("presence_update", getPresenceList(groupId));
 
   // ── send_message ────────────────────────────────────────────────────────────
   socket.on(
@@ -224,8 +238,20 @@ io.on("connection", (rawSocket: Socket) => {
     },
   );
 
+  // ── typing ───────────────────────────────────────────────────────────────────
+  socket.on("typing_start", () => {
+    socket.to(groupId).emit("user_typing", { userId, name: userName ?? null });
+  });
+
+  socket.on("typing_stop", () => {
+    socket.to(groupId).emit("user_stop_typing", { userId });
+  });
+
   socket.on("disconnect", () => {
     void socket.leave(groupId);
+    groupPresence.get(groupId)?.delete(userId);
+    if (groupPresence.get(groupId)?.size === 0) groupPresence.delete(groupId);
+    io.to(groupId).emit("presence_update", getPresenceList(groupId));
   });
 });
 

@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Card } from "@/components/ui/card";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Send,
   Loader2,
@@ -63,8 +64,10 @@ export function ChatWindow({
   const bottomRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isTypingRef = useRef(false);
 
-  const { connected, sendMessage, deleteMessage, reactMessage } = useSocketChat({
+  const { connected, onlineUsers, typingUsers, sendMessage, deleteMessage, reactMessage, sendTyping } = useSocketChat({
     onNewMessage: (msg) => {
       setMsgList((prev) => {
         if (prev.some((m) => m.id === msg.id)) return prev;
@@ -110,8 +113,24 @@ export function ChatWindow({
     }
   }
 
+  function handleInputChange(e: React.ChangeEvent<HTMLTextAreaElement>) {
+    setInput(e.target.value);
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
+      sendTyping(true);
+    }
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    typingTimeoutRef.current = setTimeout(() => {
+      isTypingRef.current = false;
+      sendTyping(false);
+    }, 2000);
+  }
+
   async function handleSend() {
     if (isBusy) return;
+    // Stop typing indicator immediately on send
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    if (isTypingRef.current) { isTypingRef.current = false; sendTyping(false); }
     setIsSending(true);
     try {
       if (pendingMedia) {
@@ -300,6 +319,30 @@ export function ChatWindow({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Online users */}
+          {onlineUsers.length > 0 && (
+            <div className="flex items-center gap-1.5">
+              <div className="flex -space-x-1.5">
+                {onlineUsers.slice(0, 4).map((u) => (
+                  <div key={u.userId} className="relative" title={u.name ?? "Online"}>
+                    <Avatar className="h-6 w-6 ring-2 ring-background">
+                      {u.picture && <AvatarImage src={u.picture} alt={u.name ?? ""} />}
+                      <AvatarFallback className="text-[9px] font-bold bg-muted">
+                        {u.name ? u.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase() : "?"}
+                      </AvatarFallback>
+                    </Avatar>
+                    <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-green-500 ring-1 ring-background" />
+                  </div>
+                ))}
+              </div>
+              {onlineUsers.length > 4 && (
+                <span className="text-[10px] text-muted-foreground">+{onlineUsers.length - 4}</span>
+              )}
+              <span className="text-[10px] text-muted-foreground">
+                {onlineUsers.length === 1 ? "1 online" : `${onlineUsers.length} online`}
+              </span>
+            </div>
+          )}
           {connected ? (
             <span title="Live"><Wifi className="h-3.5 w-3.5 text-green-500" /></span>
           ) : (
@@ -369,6 +412,24 @@ export function ChatWindow({
         </div>
 
         <div className="border-t px-3 py-2.5 shrink-0">
+          {/* Typing indicator */}
+          {typingUsers.filter((u) => u.userId !== currentUserId).length > 0 && (
+            <div className="flex items-center gap-1.5 mb-1.5 px-1">
+              <div className="flex gap-0.5 items-end">
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:0ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:150ms]" />
+                <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/60 animate-bounce [animation-delay:300ms]" />
+              </div>
+              <span className="text-[11px] text-muted-foreground italic">
+                {(() => {
+                  const others = typingUsers.filter((u) => u.userId !== currentUserId);
+                  if (others.length === 1) return `${others[0].name ?? "Someone"} is typing…`;
+                  if (others.length === 2) return `${others[0].name ?? "Someone"} and ${others[1].name ?? "someone"} are typing…`;
+                  return `${others.length} people are typing…`;
+                })()}
+              </span>
+            </div>
+          )}
           {replyTo && (
             <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/60 border border-border">
               <CornerDownLeft className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -404,7 +465,7 @@ export function ChatWindow({
             <Textarea
               ref={textareaRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => handleInputChange(e)}
               onKeyDown={handleKeyDown}
               onPaste={(e) => void handlePaste(e)}
               placeholder={replyTo ? "Write a reply…" : "Type a message…"}
