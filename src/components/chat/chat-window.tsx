@@ -295,7 +295,7 @@ export function ChatWindow({
             </p>
             <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-[11px] font-medium text-amber-700 shadow-sm dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-300">
               <Clock3 className="h-3 w-3" />
-              Chat messages are automatically deleted after 24 hours
+              Chat messages are automatically deleted after 24 hours 
             </span>
           </div>
         </div>
