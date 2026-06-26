@@ -8,29 +8,33 @@ import { TestimonialsCarousel } from "./TestimonialsCarousel";
 const LANDING_LIMIT = 9;
 
 async function getTestimonialsData() {
-  const [items, countResult] = await Promise.all([
-    db
-      .select({
-        id: feedback.id,
-        userName: feedback.userName,
-        rating: feedback.rating,
-        title: feedback.title,
-        description: feedback.description,
-        type: feedback.type,
-        userImage: users.image,
-      })
-      .from(feedback)
-      .leftJoin(users, eq(feedback.userId, users.id))
-      .where(and(eq(feedback.isPublished, true), eq(feedback.allowPublicDisplay, true)))
-      .orderBy(desc(feedback.createdAt))
-      .limit(LANDING_LIMIT),
-    db
-      .select({ total: count() })
-      .from(feedback)
-      .where(and(eq(feedback.isPublished, true), eq(feedback.allowPublicDisplay, true))),
-  ]);
+  try {
+    const [items, countResult] = await Promise.all([
+      db
+        .select({
+          id: feedback.id,
+          userName: feedback.userName,
+          rating: feedback.rating,
+          title: feedback.title,
+          description: feedback.description,
+          type: feedback.type,
+          userImage: users.image,
+        })
+        .from(feedback)
+        .leftJoin(users, eq(feedback.userId, users.id))
+        .where(and(eq(feedback.isPublished, true), eq(feedback.allowPublicDisplay, true)))
+        .orderBy(desc(feedback.createdAt))
+        .limit(LANDING_LIMIT),
+      db
+        .select({ total: count() })
+        .from(feedback)
+        .where(and(eq(feedback.isPublished, true), eq(feedback.allowPublicDisplay, true))),
+    ]);
 
-  return { items, total: countResult[0]?.total ?? 0 };
+    return { items, total: countResult[0]?.total ?? 0 };
+  } catch {
+    return { items: [], total: 0 };
+  }
 }
 
 export async function TestimonialsSection() {

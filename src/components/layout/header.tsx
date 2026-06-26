@@ -3,6 +3,7 @@
 import { signOut, useSession } from "next-auth/react";
 import type { Session } from "next-auth";
 import { LogOut, Menu, MessageSquarePlus, RefreshCw, User, Wallet, ArrowLeftRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -73,13 +74,15 @@ export function Header({ session, onMenuClick }: HeaderProps) {
 
       {/* Right */}
       <div className="flex items-center gap-2">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={() => window.location.reload()}
-          className="flex items-center cursor-pointer justify-center rounded-xl p-2 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors"
+          className="rounded-xl h-13 w-13 text-muted-foreground hover:text-foreground hover:bg-accent"
           aria-label="Refresh page"
         >
           <RefreshCw className="h-4 w-4" />
-        </button>
+        </Button>
         <ThemeToggle />
         <NotificationBell />
 
