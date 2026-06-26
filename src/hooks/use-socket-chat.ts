@@ -7,6 +7,17 @@ import { getWsToken } from "@/actions/ws-token";
 
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL ?? "http://localhost:3001";
 
+export interface OnlineUser {
+  userId: string;
+  name: string | null;
+  picture: string | null;
+}
+
+export interface TypingUser {
+  userId: string;
+  name: string | null;
+}
+
 interface SocketChatHandlers {
   onNewMessage: (msg: ChatMessage) => void;
   onMessageDeleted: (messageId: string) => void;
@@ -18,6 +29,8 @@ export function useSocketChat(handlers: SocketChatHandlers, groupId: string) {
   const socketRef = useRef<Socket | null>(null);
   const handlersRef = useRef(handlers);
   const [connected, setConnected] = useState(false);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
 
   useEffect(() => {
     handlersRef.current = handlers;
@@ -38,7 +51,11 @@ export function useSocketChat(handlers: SocketChatHandlers, groupId: string) {
       });
 
       socket.on("connect", () => setConnected(true));
-      socket.on("disconnect", () => setConnected(false));
+      socket.on("disconnect", () => {
+        setConnected(false);
+        setOnlineUsers([]);
+        setTypingUsers([]);
+      });
 
       socket.on("new_message", (msg: ChatMessage) => {
         handlersRef.current.onNewMessage(msg);
@@ -56,6 +73,20 @@ export function useSocketChat(handlers: SocketChatHandlers, groupId: string) {
         handlersRef.current.onChatReset?.();
       });
 
+      socket.on("presence_update", (users: OnlineUser[]) => {
+        setOnlineUsers(users);
+      });
+
+      socket.on("user_typing", (user: TypingUser) => {
+        setTypingUsers((prev) =>
+          prev.some((u) => u.userId === user.userId) ? prev : [...prev, user],
+        );
+      });
+
+      socket.on("user_stop_typing", ({ userId }: { userId: string }) => {
+        setTypingUsers((prev) => prev.filter((u) => u.userId !== userId));
+      });
+
       socketRef.current = socket;
     }
 
@@ -64,6 +95,8 @@ export function useSocketChat(handlers: SocketChatHandlers, groupId: string) {
     return () => {
       socket?.disconnect();
       socketRef.current = null;
+      setOnlineUsers([]);
+      setTypingUsers([]);
     };
   }, [groupId]);
 
@@ -110,5 +143,10 @@ export function useSocketChat(handlers: SocketChatHandlers, groupId: string) {
     [],
   );
 
-  return { connected, sendMessage, deleteMessage, reactMessage };
+  const sendTyping = useCallback((isTyping: boolean) => {
+    if (!socketRef.current?.connected) return;
+    socketRef.current.emit(isTyping ? "typing_start" : "typing_stop");
+  }, []);
+
+  return { connected, onlineUsers, typingUsers, sendMessage, deleteMessage, reactMessage, sendTyping };
 }
