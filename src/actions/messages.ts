@@ -83,5 +83,20 @@ export async function resetGroupChat(
 
   revalidatePath("/chat");
 
+  // Notify all connected WS clients so they clear their chat state in real-time
+  const wsUrl = process.env.WS_INTERNAL_URL;
+  const wsSecret = process.env.WS_INTERNAL_SECRET;
+  if (wsUrl && wsSecret) {
+    try {
+      await fetch(`${wsUrl}/internal/chat-reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-internal-secret": wsSecret },
+        body: JSON.stringify({ groupId }),
+      });
+    } catch {
+      // Non-fatal — clients will see the reset on next reconnect/page load
+    }
+  }
+
   return { success: true };
 }

@@ -3,23 +3,11 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { db } from "@/db";
 import { messages, groupMembers, users, messageReactions } from "@/db/schema";
-import { eq, and, desc, lt, ne, inArray } from "drizzle-orm";
-import { z } from "zod";
-import { notifyUsers } from "@/lib/notify";
-import type { ReactionGroup, ReplyPreview, MessageType } from "@/types/chat";
+import { eq, and, desc, lt, inArray } from "drizzle-orm";
+import type { ReactionGroup } from "@/types/chat";
 
 const PAGE_SIZE = 50;
 const CHAT_TYPES = ["text", "image", "system", "expense_update", "chore_update", "settlement_update"] as const;
-
-async function getActiveGroupId(userId: string): Promise<string | null> {
-  const [membership] = await db
-    .select({ groupId: groupMembers.groupId })
-    .from(groupMembers)
-    .where(and(eq(groupMembers.userId, userId), eq(groupMembers.status, "active")))
-    .orderBy(desc(groupMembers.joinedAt))
-    .limit(1);
-  return membership?.groupId ?? null;
-}
 
 function groupReactionsByMessage(
   raw: { messageId: string; emoji: string; userId: string; userName: string | null }[],
@@ -52,8 +40,24 @@ export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const groupId = await getActiveGroupId(session.user.id);
-  if (!groupId) return NextResponse.json({ error: "No active group" }, { status: 404 });
+  // Verify the requested groupId is one the user actually belongs to
+  const groupIdParam = req.nextUrl.searchParams.get("groupId");
+  if (!groupIdParam) return NextResponse.json({ error: "groupId required" }, { status: 400 });
+
+  const [membership] = await db
+    .select({ groupId: groupMembers.groupId })
+    .from(groupMembers)
+    .where(
+      and(
+        eq(groupMembers.userId, session.user.id),
+        eq(groupMembers.groupId, groupIdParam),
+        eq(groupMembers.status, "active"),
+      ),
+    )
+    .limit(1);
+
+  if (!membership) return NextResponse.json({ error: "No active group" }, { status: 404 });
+  const groupId = membership.groupId;
 
   const cursor = req.nextUrl.searchParams.get("cursor");
 
@@ -131,118 +135,5 @@ export async function GET(req: NextRequest) {
         : null,
     })),
     hasMore,
-  });
-}
-
-const sendSchema = z.object({
-  content: z.string().min(1).max(2000),
-  type: z.enum(["text", "image"]).default("text"),
-  metadata: z.record(z.string(), z.unknown()).nullish(),
-  replyToId: z.uuid().nullish(),
-});
-
-export async function POST(req: NextRequest) {
-  const session = await getServerSession(authOptions);
-  if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
-  const groupId = await getActiveGroupId(session.user.id);
-  if (!groupId) return NextResponse.json({ error: "No active group" }, { status: 404 });
-
-  const body: unknown = await req.json();
-  const parsed = sendSchema.safeParse(body);
-  if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid message" }, { status: 400 });
-  }
-
-  const { type, metadata, replyToId } = parsed.data;
-  const content = type === "text" ? parsed.data.content.trim() : parsed.data.content;
-  if (!content) return NextResponse.json({ error: "Invalid message" }, { status: 400 });
-
-  // Validate replyToId belongs to the same group
-  if (replyToId) {
-    const [refMsg] = await db
-      .select({ groupId: messages.groupId })
-      .from(messages)
-      .where(eq(messages.id, replyToId))
-      .limit(1);
-    if (!refMsg || refMsg.groupId !== groupId) {
-      return NextResponse.json({ error: "Invalid replyToId" }, { status: 400 });
-    }
-  }
-
-  const [msg] = await db
-    .insert(messages)
-    .values({
-      groupId,
-      senderId: session.user.id,
-      type,
-      content,
-      metadata: (metadata ?? null) as Record<string, unknown> | null,
-      replyToId: replyToId ?? null,
-    })
-    .returning({
-      id: messages.id,
-      senderId: messages.senderId,
-      content: messages.content,
-      type: messages.type,
-      metadata: messages.metadata,
-      replyToId: messages.replyToId,
-      createdAt: messages.createdAt,
-    });
-
-  let replyTo: ReplyPreview | null = null;
-  if (msg.replyToId) {
-    const [ref] = await db
-      .select({
-        id: messages.id,
-        senderName: users.name,
-        content: messages.content,
-        type: messages.type,
-        isDeleted: messages.isDeleted,
-      })
-      .from(messages)
-      .leftJoin(users, eq(messages.senderId, users.id))
-      .where(eq(messages.id, msg.replyToId))
-      .limit(1);
-    if (ref) replyTo = { ...ref, type: ref.type as MessageType };
-  }
-
-  const otherMembers = await db
-    .select({ userId: groupMembers.userId })
-    .from(groupMembers)
-    .where(
-      and(
-        eq(groupMembers.groupId, groupId),
-        eq(groupMembers.status, "active"),
-        ne(groupMembers.userId, session.user.id),
-      ),
-    );
-
-  const otherIds = otherMembers.map((m) => m.userId);
-  if (otherIds.length > 0) {
-    const notifBody =
-      type === "image" ? "📷 Sent an image" : content.slice(0, 100);
-    await notifyUsers(
-      otherIds,
-      groupId,
-      "general",
-      `New message from ${session.user.name ?? "a member"}`,
-      notifBody,
-      { url: "/chat" },
-    );
-  }
-
-  return NextResponse.json({
-    id: msg.id,
-    senderId: msg.senderId,
-    senderName: session.user.name ?? null,
-    senderImage: session.user.image ?? null,
-    content: msg.content,
-    type: msg.type,
-    metadata: msg.metadata,
-    replyToId: msg.replyToId,
-    replyTo,
-    reactions: [],
-    createdAt: msg.createdAt.toISOString(),
   });
 }

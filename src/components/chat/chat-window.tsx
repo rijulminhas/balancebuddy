@@ -9,19 +9,20 @@ import {
   Send,
   Loader2,
   MessageSquare,
-  RefreshCw,
   Trash2,
   ImagePlus,
   Clock3,
   X,
   CornerDownLeft,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import { MessageBubble } from "./message-bubble";
 import { ResetChatModal } from "./reset-chat-modal";
 import { EmojiPickerButton } from "./emoji-picker";
 import { GifPickerButton } from "./gif-picker";
-import type { ChatMessage, MessageType } from "@/types/chat";
-import { useChatSync } from "@/hooks/use-chat-sync";
+import type { ChatMessage, MessageType, ReactionGroup } from "@/types/chat";
+import { useSocketChat } from "@/hooks/use-socket-chat";
 
 interface ChatWindowProps {
   initialMessages: ChatMessage[];
@@ -63,28 +64,26 @@ export function ChatWindow({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const { isPolling, advanceTs, resetSync } = useChatSync(
-    groupId,
-    initialMessages.at(-1)?.createdAt ?? new Date(0).toISOString(),
-    (incoming) => {
+  const { connected, sendMessage, deleteMessage, reactMessage } = useSocketChat({
+    onNewMessage: (msg) => {
       setMsgList((prev) => {
-        const seenIds = new Set(prev.map((m) => m.id));
-        const fresh = incoming.filter((m) => !seenIds.has(m.id));
-        const updates = incoming.filter((m) => seenIds.has(m.id));
-
-        if (!fresh.length && !updates.length) return prev;
-
-        // Merge reaction/reply updates into existing messages
-        if (updates.length) {
-          const updatedMap = new Map(updates.map((m) => [m.id, m]));
-          const merged = prev.map((m) => updatedMap.get(m.id) ?? m);
-          return [...merged, ...fresh];
-        }
-
-        return [...prev, ...fresh];
+        if (prev.some((m) => m.id === msg.id)) return prev;
+        return [...prev, msg];
       });
     },
-  );
+    onMessageDeleted: (messageId) => {
+      setMsgList((prev) => prev.filter((m) => m.id !== messageId));
+    },
+    onReactionsUpdated: ({ messageId, reactions }: { messageId: string; reactions: ReactionGroup[] }) => {
+      setMsgList((prev) =>
+        prev.map((m) => (m.id === messageId ? { ...m, reactions } : m)),
+      );
+    },
+    onChatReset: () => {
+      setMsgList([]);
+      setHasMore(false);
+    },
+  }, groupId);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -95,7 +94,7 @@ export function ChatWindow({
     setIsLoadingMore(true);
     try {
       const cursor = msgList[0].createdAt;
-      const res = await fetch(`/api/chat?cursor=${encodeURIComponent(cursor)}`);
+      const res = await fetch(`/api/chat?cursor=${encodeURIComponent(cursor)}&groupId=${encodeURIComponent(groupId)}`);
       if (!res.ok) return;
       const data = (await res.json()) as {
         messages: ChatMessage[];
@@ -111,45 +110,25 @@ export function ChatWindow({
     }
   }
 
-  async function sendMessage(
-    type: MessageType,
-    content: string,
-    metadata?: Record<string, unknown> | null,
-    replyToId?: string | null,
-  ) {
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content, type, metadata: metadata ?? null, replyToId: replyToId ?? null }),
-    });
-    if (!res.ok) throw new Error("Send failed");
-    const msg = (await res.json()) as ChatMessage;
-    setMsgList((prev) => {
-      if (prev.some((m) => m.id === msg.id)) return prev;
-      advanceTs(msg.createdAt);
-      return [...prev, msg];
-    });
-  }
-
   async function handleSend() {
     if (isBusy) return;
     setIsSending(true);
     try {
       if (pendingMedia) {
-        await sendMessage(
-          "image",
-          pendingMedia.url,
-          pendingMedia.type === "gif" ? { isGif: true } : null,
-          replyTo?.id ?? null,
-        );
+        const res = await sendMessage({
+          content: pendingMedia.url,
+          type: "image",
+          metadata: pendingMedia.type === "gif" ? { isGif: true } : null,
+          replyToId: replyTo?.id ?? null,
+        });
+        if (!res.ok) throw new Error(res.error ?? "Send failed");
         setPendingMedia(null);
       } else {
         const content = input.trim();
         if (!content) return;
         setInput("");
-        try {
-          await sendMessage("text", content, null, replyTo?.id ?? null);
-        } catch {
+        const res = await sendMessage({ content, type: "text", replyToId: replyTo?.id ?? null });
+        if (!res.ok) {
           toast.error("Failed to send message.");
           setInput(content);
           return;
@@ -168,17 +147,12 @@ export function ChatWindow({
       e.preventDefault();
       void handleSend();
     }
-    if (e.key === "Escape" && replyTo) {
-      setReplyTo(null);
-    }
+    if (e.key === "Escape" && replyTo) setReplyTo(null);
   }
 
   function handleEmojiSelect(emoji: string) {
     const textarea = textareaRef.current;
-    if (!textarea) {
-      setInput((prev) => prev + emoji);
-      return;
-    }
+    if (!textarea) { setInput((prev) => prev + emoji); return; }
     const start = textarea.selectionStart;
     const end = textarea.selectionEnd;
     const next = input.slice(0, start) + emoji + input.slice(end);
@@ -191,13 +165,9 @@ export function ChatWindow({
   }
 
   async function handleDeleteMessage(messageId: string) {
-    const res = await fetch(`/api/chat/${messageId}`, { method: "DELETE" });
-    if (!res.ok) {
-      toast.error("Failed to delete message.");
-      return;
-    }
-    setMsgList((prev) => prev.filter((m) => m.id !== messageId));
-    toast.success("Message deleted successfully.");
+    const res = await deleteMessage(messageId);
+    if (!res.ok) toast.error("Failed to delete message.");
+    else toast.success("Message deleted successfully.");
   }
 
   async function handleReact(messageId: string, emoji: string) {
@@ -214,54 +184,29 @@ export function ChatWindow({
             reactions: m.reactions
               .map((r) =>
                 r.emoji === emoji
-                  ? {
-                      ...r,
-                      count: r.count - 1,
-                      userIds: r.userIds.filter((id) => id !== currentUserId),
-                      userNames: r.userNames.filter((_, i) => r.userIds[i] !== currentUserId),
-                    }
+                  ? { ...r, count: r.count - 1, userIds: r.userIds.filter((id) => id !== currentUserId), userNames: r.userNames.filter((_, i) => r.userIds[i] !== currentUserId) }
                   : r,
               )
               .filter((r) => r.count > 0),
           };
         }
-
         if (existing) {
           return {
             ...m,
             reactions: m.reactions.map((r) =>
               r.emoji === emoji
-                ? {
-                    ...r,
-                    count: r.count + 1,
-                    userIds: [...r.userIds, currentUserId],
-                    userNames: [...r.userNames, currentUserName],
-                  }
+                ? { ...r, count: r.count + 1, userIds: [...r.userIds, currentUserId], userNames: [...r.userNames, currentUserName] }
                 : r,
             ),
           };
         }
-
-        return {
-          ...m,
-          reactions: [
-            ...m.reactions,
-            { emoji, count: 1, userIds: [currentUserId], userNames: [currentUserName] },
-          ],
-        };
+        return { ...m, reactions: [...m.reactions, { emoji, count: 1, userIds: [currentUserId], userNames: [currentUserName] }] };
       }),
     );
 
-    const res = await fetch(`/api/chat/${messageId}/react`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ emoji }),
-    });
-
-    if (!res.ok) {
-      toast.error("Failed to react.");
-      // Revert by re-fetching — next poll will sync state
-    }
+    const res = await reactMessage(messageId, emoji);
+    // server will emit reactions_updated which will reconcile the state
+    if (!res.ok) toast.error("Failed to react.");
   }
 
   function handleReply(message: ChatMessage) {
@@ -290,23 +235,12 @@ export function ChatWindow({
       fd.append("file", file);
       const res = await fetch("/api/chat/upload", { method: "POST", body: fd });
 
-      if (res.status === 413) {
-        toast.error("Image is too large. Please use an image under 5 MB.");
-        return;
-      }
+      if (res.status === 413) { toast.error("Image is too large. Please use an image under 5 MB."); return; }
 
       let data: { url?: string; error?: string } = {};
-      try {
-        data = await res.json();
-      } catch {
-        toast.error("Failed to upload image. Please try again.");
-        return;
-      }
+      try { data = await res.json(); } catch { toast.error("Failed to upload image."); return; }
 
-      if (!res.ok) {
-        toast.error(data.error ?? "Failed to upload image.");
-        return;
-      }
+      if (!res.ok) { toast.error(data.error ?? "Failed to upload image."); return; }
       setPendingMedia({ url: data.url!, type: "image" });
     } catch {
       toast.error("Failed to upload image. Please try again.");
@@ -323,9 +257,7 @@ export function ChatWindow({
   }
 
   async function handlePaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
-    const imageItem = Array.from(e.clipboardData.items).find((item) =>
-      item.type.startsWith("image/"),
-    );
+    const imageItem = Array.from(e.clipboardData.items).find((item) => item.type.startsWith("image/"));
     if (!imageItem) return;
     e.preventDefault();
     const file = imageItem.getAsFile();
@@ -334,26 +266,20 @@ export function ChatWindow({
   }
 
   function handleDragOver(e: React.DragEvent) {
-    const hasImage = Array.from(e.dataTransfer.items).some((item) =>
-      item.type.startsWith("image/"),
-    );
+    const hasImage = Array.from(e.dataTransfer.items).some((item) => item.type.startsWith("image/"));
     if (!hasImage) return;
     e.preventDefault();
     setIsDragging(true);
   }
 
   function handleDragLeave(e: React.DragEvent) {
-    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
-      setIsDragging(false);
-    }
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) setIsDragging(false);
   }
 
   async function handleDrop(e: React.DragEvent) {
     e.preventDefault();
     setIsDragging(false);
-    const file = Array.from(e.dataTransfer.files).find((f) =>
-      f.type.startsWith("image/"),
-    );
+    const file = Array.from(e.dataTransfer.files).find((f) => f.type.startsWith("image/"));
     if (!file) return;
     await uploadImageFile(file);
   }
@@ -374,8 +300,10 @@ export function ChatWindow({
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {isPolling && (
-            <RefreshCw className="h-3.5 w-3.5 text-muted-foreground animate-spin" />
+          {connected ? (
+            <span title="Live"><Wifi className="h-3.5 w-3.5 text-green-500" /></span>
+          ) : (
+            <span title="Connecting…"><WifiOff className="h-3.5 w-3.5 text-muted-foreground animate-pulse" /></span>
           )}
           {isPrivileged && (
             <Button
@@ -405,16 +333,8 @@ export function ChatWindow({
         )}
         {hasMore && (
           <div className="flex justify-center py-2 border-b shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs"
-              disabled={isLoadingMore}
-              onClick={loadOlder}
-            >
-              {isLoadingMore && (
-                <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />
-              )}
+            <Button variant="ghost" size="sm" className="text-xs" disabled={isLoadingMore} onClick={loadOlder}>
+              {isLoadingMore && <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" />}
               Load older messages
             </Button>
           </div>
@@ -424,12 +344,8 @@ export function ChatWindow({
           {msgList.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full py-16 text-center">
               <MessageSquare className="mb-3 h-10 w-10 text-muted-foreground/30" />
-              <p className="text-sm font-medium text-muted-foreground">
-                No messages yet
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Be the first to say hello!
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">No messages yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Be the first to say hello!</p>
             </div>
           ) : (
             msgList.map((msg) => (
@@ -453,7 +369,6 @@ export function ChatWindow({
         </div>
 
         <div className="border-t px-3 py-2.5 shrink-0">
-          {/* Reply context bar */}
           {replyTo && (
             <div className="flex items-center gap-2 mb-2 px-2 py-1.5 rounded-lg bg-muted/60 border border-border">
               <CornerDownLeft className="h-3.5 w-3.5 text-primary shrink-0" />
@@ -476,18 +391,10 @@ export function ChatWindow({
             </div>
           )}
 
-          {/* Pending media preview */}
           {pendingMedia && (
             <div className="flex items-center gap-2 mb-2 px-1">
-              <img
-                src={pendingMedia.url}
-                alt="pending"
-                className="h-16 w-16 rounded-md object-cover border"
-              />
-              <button
-                onClick={() => setPendingMedia(null)}
-                className="text-xs text-muted-foreground hover:text-destructive"
-              >
+              <img src={pendingMedia.url} alt="pending" className="h-16 w-16 rounded-md object-cover border" />
+              <button onClick={() => setPendingMedia(null)} className="text-xs text-muted-foreground hover:text-destructive">
                 ✕ Remove
               </button>
             </div>
@@ -506,14 +413,8 @@ export function ChatWindow({
               disabled={isBusy}
             />
 
-            <EmojiPickerButton
-              onEmojiSelect={handleEmojiSelect}
-              disabled={isBusy}
-            />
-            <GifPickerButton
-              onGifSelect={handleGifSelect}
-              disabled={isBusy}
-            />
+            <EmojiPickerButton onEmojiSelect={handleEmojiSelect} disabled={isBusy} />
+            <GifPickerButton onGifSelect={handleGifSelect} disabled={isBusy} />
             <input
               ref={fileInputRef}
               type="file"
@@ -529,11 +430,7 @@ export function ChatWindow({
               type="button"
               onClick={() => fileInputRef.current?.click()}
             >
-              {isUploading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ImagePlus className="h-4 w-4" />
-              )}
+              {isUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ImagePlus className="h-4 w-4" />}
             </Button>
             <Button
               size="icon"
@@ -541,11 +438,7 @@ export function ChatWindow({
               onClick={() => void handleSend()}
               className="h-8 w-8 shrink-0 rounded-lg"
             >
-              {isSending ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Send className="h-3.5 w-3.5" />
-              )}
+              {isSending ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Send className="h-3.5 w-3.5" />}
             </Button>
           </div>
           <p className="text-[10px] text-muted-foreground mt-1.5 px-1">
@@ -564,7 +457,6 @@ export function ChatWindow({
           onSuccess={() => {
             setMsgList([]);
             setHasMore(false);
-            resetSync();
           }}
         />
       )}
