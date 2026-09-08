@@ -1,0 +1,433 @@
+"use client";
+
+import { useState } from "react";
+import { format } from "date-fns";
+import { Trash2, Reply, SmilePlus, Receipt, CheckSquare, ArrowLeftRight, Info, CheckCheck } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
+import type { ChatMessage, ReactionGroup } from "@/types/chat";
+
+const QUICK_REACTIONS = ["👍", "❤️", "😂", "😮", "😢", "🔥"];
+
+function getInitials(name: string | null): string {
+  if (!name) return "?";
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
+}
+
+function MessageContent({ message }: { message: ChatMessage }) {
+  if (message.type === "image") {
+    return (
+      <img
+        src={message.content}
+        alt="image"
+        loading="lazy"
+        className="max-w-60 rounded-xl object-cover shadow-sm cursor-pointer"
+        onClick={() => window.open(message.content, "_blank")}
+      />
+    );
+  }
+  return (
+    <span className="whitespace-pre-wrap wrap-break-word">{message.content}</span>
+  );
+}
+
+function ReplyPreviewBubble({
+  replyTo,
+  isOwn,
+}: {
+  replyTo: NonNullable<ChatMessage["replyTo"]>;
+  isOwn: boolean;
+}) {
+  const previewText = replyTo.isDeleted
+    ? "Message deleted"
+    : replyTo.type === "image"
+      ? "📷 Image"
+      : replyTo.content.slice(0, 80);
+
+  return (
+    <div
+      className={cn(
+        "rounded-lg border-l-[3px] px-2.5 py-1.5 mb-1 text-xs max-w-full truncate",
+        isOwn
+          ? "border-primary-foreground/50 bg-primary/70 text-primary-foreground/80"
+          : "border-primary/50 bg-muted text-muted-foreground",
+      )}
+    >
+      <p className="font-semibold truncate mb-0.5">
+        {replyTo.senderName ?? "Unknown"}
+      </p>
+      <p className="truncate opacity-80">{previewText}</p>
+    </div>
+  );
+}
+
+function ReactionsDisplay({
+  reactions,
+  currentUserId,
+  messageId,
+  onReact,
+}: {
+  reactions: ReactionGroup[];
+  currentUserId: string;
+  messageId: string;
+  onReact: (messageId: string, emoji: string) => void;
+}) {
+  if (!reactions.length) return null;
+  return (
+    <TooltipProvider delayDuration={300}>
+      <div className="flex flex-wrap gap-1 mt-1">
+        {reactions.map((r) => {
+          const isOwn = r.userIds.includes(currentUserId);
+          const tooltipLabel = r.userNames
+            .map((name, i) => (r.userIds[i] === currentUserId ? "You" : name))
+            .join("\n");
+          return (
+            <Tooltip key={r.emoji}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => onReact(messageId, r.emoji)}
+                  className={cn(
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium transition-colors",
+                    isOwn
+                      ? "border-primary/40 bg-primary/10 text-primary hover:bg-primary/20"
+                      : "border-border bg-background hover:bg-muted text-foreground",
+                  )}
+                >
+                  <span>{r.emoji}</span>
+                  <span>{r.count}</span>
+                </button>
+              </TooltipTrigger>
+              <TooltipContent
+                side="left"
+                className="whitespace-pre-line text-center max-w-45"
+              >
+                {tooltipLabel}
+              </TooltipContent>
+            </Tooltip>
+          );
+        })}
+      </div>
+    </TooltipProvider>
+  );
+}
+
+function ReactionPickerButton({
+  messageId,
+  onReact,
+}: {
+  messageId: string;
+  onReact: (messageId: string, emoji: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          className="p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          aria-label="React to message"
+        >
+          <SmilePlus className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-auto p-1.5"
+        side="top"
+        align="center"
+        sideOffset={6}
+      >
+        <div className="flex gap-0.5">
+          {QUICK_REACTIONS.map((emoji) => (
+            <button
+              key={emoji}
+              type="button"
+              onClick={() => {
+                onReact(messageId, emoji);
+                setOpen(false);
+              }}
+              className="text-lg p-1 rounded-md hover:bg-muted transition-transform hover:scale-125"
+              aria-label={emoji}
+            >
+              {emoji}
+            </button>
+          ))}
+        </div>
+      </PopoverContent>
+    </Popover>
+  );
+}
+
+export interface SeenUser {
+  userId: string;
+  name: string | null;
+  picture: string | null;
+}
+
+function SeenByIndicator({ seen }: { seen: SeenUser[] }) {
+  if (!seen.length) return null;
+  const label = "Seen by\n" + seen.map((u) => u.name ?? "Unknown").join("\n");
+  return (
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <div className="flex items-center gap-1 px-1 mt-0.5 cursor-default">
+            <CheckCheck className="h-3 w-3 text-primary shrink-0" />
+            <div className="flex -space-x-1.5">
+              {seen.slice(0, 3).map((u) => (
+                <Avatar key={u.userId} className="h-4 w-4 ring-1 ring-background">
+                  {u.picture && <AvatarImage src={u.picture} alt={u.name ?? ""} />}
+                  <AvatarFallback className="text-[7px] font-bold bg-muted">
+                    {getInitials(u.name)}
+                  </AvatarFallback>
+                </Avatar>
+              ))}
+            </div>
+            {seen.length > 3 && (
+              <span className="text-[9px] text-muted-foreground">+{seen.length - 3}</span>
+            )}
+          </div>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="whitespace-pre-line text-center max-w-45">
+          {label}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
+  );
+}
+
+interface MessageBubbleProps {
+  message: ChatMessage;
+  isOwn: boolean;
+  currentUserId: string;
+  canDelete?: boolean;
+  onDelete?: () => void;
+  onReply?: (message: ChatMessage) => void;
+  onReact?: (messageId: string, emoji: string) => void;
+  seenBy?: SeenUser[];
+}
+
+export function MessageBubble({
+  message,
+  isOwn,
+  currentUserId,
+  canDelete,
+  onDelete,
+  onReply,
+  onReact,
+  seenBy,
+}: MessageBubbleProps) {
+  const [confirming, setConfirming] = useState(false);
+  const time = format(new Date(message.createdAt), "hh:mm a");
+  const name = message.senderName ?? "Unknown";
+  const isImage = message.type === "image";
+
+  // System / activity messages render as centred pill — no avatar, no actions
+  if (
+    message.type === "expense_update" ||
+    message.type === "chore_update" ||
+    message.type === "settlement_update" ||
+    message.type === "system"
+  ) {
+    const pillStyle = {
+      expense_update: {
+        wrapper: "bg-emerald-500/10 border-emerald-200 dark:border-emerald-900/40 text-emerald-700 dark:text-emerald-300",
+        icon: <Receipt className="h-3 w-3 shrink-0" />,
+      },
+      chore_update: {
+        wrapper: "bg-rose-500/10 border-rose-200 dark:border-rose-900/40 text-rose-700 dark:text-rose-300",
+        icon: <CheckSquare className="h-3 w-3 shrink-0" />,
+      },
+      settlement_update: {
+        wrapper: "bg-blue-500/10 border-blue-200 dark:border-blue-900/40 text-blue-700 dark:text-blue-300",
+        icon: <ArrowLeftRight className="h-3 w-3 shrink-0" />,
+      },
+      system: {
+        wrapper: "bg-muted border-border text-muted-foreground",
+        icon: <Info className="h-3 w-3 shrink-0" />,
+      },
+    }[message.type];
+
+    return (
+      <div className="flex flex-col items-center gap-0.5 py-0.5">
+        <div className={cn(
+          "flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium max-w-[85%] text-center",
+          pillStyle.wrapper,
+        )}>
+          {pillStyle.icon}
+          <span>{message.content}</span>
+        </div>
+        <span className="text-[9px] text-muted-foreground/60">{time}</span>
+      </div>
+    );
+  }
+
+  const handleReact = onReact
+    ? (messageId: string, emoji: string) => onReact(messageId, emoji)
+    : undefined;
+
+  const ActionBar = (
+    <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5 shrink-0 self-center">
+      {onReply && (
+        <button
+          type="button"
+          onClick={() => onReply(message)}
+          className="p-1 rounded-full hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
+          aria-label="Reply"
+        >
+          <Reply className="h-3.5 w-3.5" />
+        </button>
+      )}
+      {handleReact && (
+        <ReactionPickerButton messageId={message.id} onReact={handleReact} />
+      )}
+      {canDelete && (
+        <button
+          type="button"
+          onClick={() => setConfirming(true)}
+          className="p-1 rounded-full hover:bg-destructive/10 transition-colors text-muted-foreground hover:text-destructive"
+          aria-label="Delete message"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      )}
+    </div>
+  );
+
+  const DeleteDialog = (
+    <Dialog open={confirming} onOpenChange={setConfirming}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <Trash2 className="h-4 w-4 text-destructive" />
+            Delete message
+          </DialogTitle>
+          <DialogDescription>
+            This message will be permanently deleted. This action cannot be
+            undone.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="gap-2 sm:gap-0">
+          <Button variant="outline" onClick={() => setConfirming(false)}>
+            Cancel
+          </Button>
+          <Button
+            variant="destructive"
+            onClick={() => {
+              setConfirming(false);
+              onDelete?.();
+            }}
+          >
+            Delete
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+
+  if (isOwn) {
+    return (
+      <>
+        <div className="group flex justify-end">
+          <div className="flex flex-col items-end gap-0.5 max-w-[75%]">
+            {message.replyTo && (
+              <ReplyPreviewBubble replyTo={message.replyTo} isOwn={true} />
+            )}
+            <div className="flex items-end gap-1.5">
+              {ActionBar}
+              {isImage ? (
+                <MessageContent message={message} />
+              ) : (
+                <div className="rounded-2xl rounded-tr-sm bg-primary text-primary-foreground px-4 py-2.5 text-sm shadow-sm">
+                  <MessageContent message={message} />
+                </div>
+              )}
+            </div>
+            {message.reactions.length > 0 && handleReact && (
+              <ReactionsDisplay
+                reactions={message.reactions}
+                currentUserId={currentUserId}
+                messageId={message.id}
+                onReact={handleReact}
+              />
+            )}
+            <span className="text-[10px] text-muted-foreground px-1">
+              {time}
+            </span>
+            {seenBy && <SeenByIndicator seen={seenBy} />}
+          </div>
+        </div>
+        {DeleteDialog}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <div className="group flex items-end gap-2">
+        <Avatar className="h-7 w-7 shrink-0 ring-1 ring-border">
+          {message.senderImage && (
+            <AvatarImage src={message.senderImage} alt={name} />
+          )}
+          <AvatarFallback className="bg-muted text-muted-foreground text-[10px] font-bold">
+            {getInitials(name)}
+          </AvatarFallback>
+        </Avatar>
+        <div className="flex flex-col gap-0.5 max-w-[75%]">
+          <span className="text-[11px] font-semibold text-muted-foreground px-1">
+            {name}
+          </span>
+          {message.replyTo && (
+            <ReplyPreviewBubble replyTo={message.replyTo} isOwn={false} />
+          )}
+          <div className="flex items-end gap-1.5">
+            {isImage ? (
+              <MessageContent message={message} />
+            ) : (
+              <div className="rounded-2xl rounded-tl-sm bg-muted px-4 py-2.5 text-sm shadow-sm">
+                <MessageContent message={message} />
+              </div>
+            )}
+            {ActionBar}
+          </div>
+          {message.reactions.length > 0 && handleReact && (
+            <ReactionsDisplay
+              reactions={message.reactions}
+              currentUserId={currentUserId}
+              messageId={message.id}
+              onReact={handleReact}
+            />
+          )}
+          <span className="text-[10px] text-muted-foreground px-1">{time}</span>
+        </div>
+      </div>
+      {DeleteDialog}
+    </>
+  );
+}

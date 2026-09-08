@@ -1,0 +1,16 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/reminders",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/settlements/remind",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/cleanup-chat",
+      "schedule": "0 3 * * *"
+    }
+  ]
+}

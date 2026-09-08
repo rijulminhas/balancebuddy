@@ -1,0 +1,37 @@
+export type MessageType = "text" | "image" | "system" | "expense_update" | "chore_update" | "settlement_update";
+
+export interface ReactionGroup {
+  emoji: string;
+  count: number;
+  userIds: string[];
+  userNames: string[];
+}
+
+export interface ReplyPreview {
+  id: string;
+  senderName: string | null;
+  content: string;
+  type: MessageType;
+  isDeleted: boolean;
+}
+
+export interface ReadReceipt {
+  userId: string;
+  name: string | null;
+  picture: string | null;
+  lastReadAt: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  senderId: string | null;
+  senderName: string | null;
+  senderImage: string | null;
+  content: string;
+  type: MessageType;
+  metadata: Record<string, unknown> | null;
+  replyToId: string | null;
+  replyTo: ReplyPreview | null;
+  reactions: ReactionGroup[];
+  createdAt: string;
+}
